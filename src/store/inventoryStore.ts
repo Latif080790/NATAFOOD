@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { supabase } from '@/lib/supabase'
+import { toast } from '@/store/toastStore'
 
 export interface StockItem {
     id: string
@@ -14,83 +16,117 @@ export interface StockItem {
 
 interface InventoryState {
     stock: StockItem[]
-    updateStock: (id: string, newQuantity: number) => void
+    isLoading: boolean
+    fetchStock: () => Promise<void>
+    updateStock: (id: string, newQuantity: number) => Promise<void>
+    subscribeToStock: () => void
+    unsubscribeFromStock: () => void
 }
 
-const INITIAL_STOCK: StockItem[] = [
-    {
-        id: '1',
-        name: 'Whole Milk',
-        sku: 'SKU-8921',
-        category: 'Dairy',
-        unit: 'Liters',
-        currentStock: 24,
-        minStock: 5,
-        maxStock: 28,
-        image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=200&auto=format&fit=crop&q=60'
-    },
-    {
-        id: '2',
-        name: 'Dark Choco Chips',
-        sku: 'SKU-4402',
-        category: 'Dry Goods',
-        unit: 'Kg',
-        currentStock: 4.2,
-        minStock: 3,
-        maxStock: 12,
-        image: 'https://images.unsplash.com/photo-1606312619070-d48b4c652a52?w=200&auto=format&fit=crop&q=60'
-    },
-    {
-        id: '3',
-        name: 'Strawberries',
-        sku: 'SKU-1022',
-        category: 'Fresh',
-        unit: 'Kg',
-        currentStock: 0.5,
-        minStock: 2,
-        maxStock: 10,
-        image: 'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=200&auto=format&fit=crop&q=60'
-    },
-    {
-        id: '4',
-        name: 'Vanilla Syrup',
-        sku: 'SKU-7721',
-        category: 'Syrups',
-        unit: 'Bottles',
-        currentStock: 12,
-        minStock: 3,
-        maxStock: 13,
-        image: 'https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=200&auto=format&fit=crop&q=60'
-    },
-    {
-        id: '5',
-        name: 'Pastry Flour',
-        sku: 'SKU-2399',
-        category: 'Dry Goods',
-        unit: 'Kg',
-        currentStock: 30,
-        minStock: 10,
-        maxStock: 50,
-        image: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=200&auto=format&fit=crop&q=60'
-    },
-    {
-        id: '6',
-        name: '12oz Paper Cups',
-        sku: 'SKU-9001',
-        category: 'Packaging',
-        unit: 'Units',
-        currentStock: 150,
-        minStock: 100,
-        maxStock: 375,
-        image: 'https://images.unsplash.com/photo-1572119865084-43c285814d63?w=200&auto=format&fit=crop&q=60'
-    }
-]
-
 export const useInventoryStore = create<InventoryState>((set) => ({
-    stock: INITIAL_STOCK,
-    updateStock: (id, newQuantity) => set((state) => ({
-        stock: state.stock.map((item) =>
-            item.id === id ? { ...item, currentStock: Math.max(0, newQuantity) } : item
-        )
-    })),
+    stock: [],
+    isLoading: false,
+
+    fetchStock: async () => {
+        set({ isLoading: true })
+        try {
+            const { data, error } = await supabase
+                .from('inventory')
+                .select('*')
+                .order('name')
+
+            if (error) throw error
+
+            if (data) {
+                const mappedStock: StockItem[] = data.map((item: any) => ({
+                    id: item.id,
+                    name: item.name,
+                    sku: item.sku || '',
+                    category: item.category || 'Uncategorized',
+                    unit: item.unit || 'units',
+                    currentStock: Number(item.current_stock),
+                    minStock: Number(item.min_stock),
+                    maxStock: Number(item.max_stock) || 100,
+                    image: item.image_url || 'https://images.unsplash.com/photo-1556740738-b6a63e27c4df'
+                }))
+                set({ stock: mappedStock })
+            }
+        } catch (error) {
+            console.error('Error fetching inventory:', error)
+            toast.error('Gagal memuat stok.')
+        } finally {
+            set({ isLoading: false })
+        }
+    },
+
+    updateStock: async (id, newQuantity) => {
+        // Optimistic update
+        set((state) => ({
+            stock: state.stock.map((item) =>
+                item.id === id ? { ...item, currentStock: Math.max(0, newQuantity) } : item
+            )
+        }))
+
+        try {
+            const { error } = await supabase
+                .from('inventory')
+                .update({
+                    current_stock: Math.max(0, newQuantity),
+                    last_updated: new Date().toISOString()
+                })
+                .eq('id', id)
+
+            if (error) throw error
+            toast.success('Stok berhasil diperbarui')
+        } catch (error) {
+            console.error('Error updating stock:', error)
+            toast.error('Gagal update stok database')
+            // Revert? (Not implemented)
+        }
+    },
+
+    subscribeToStock: () => {
+        supabase
+            .channel('inventory-channel')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'inventory' },
+                (payload) => {
+                    if (payload.eventType === 'UPDATE') {
+                        set(state => ({
+                            stock: state.stock.map(item =>
+                                item.id === payload.new.id
+                                    ? {
+                                        ...item,
+                                        currentStock: payload.new.current_stock,
+                                        name: payload.new.name, // In case name changes
+                                        minStock: payload.new.min_stock
+                                    }
+                                    : item
+                            )
+                        }))
+                    } else if (payload.eventType === 'INSERT') {
+                        const newItem = payload.new
+                        set(state => ({
+                            stock: [...state.stock, {
+                                id: newItem.id,
+                                name: newItem.name,
+                                sku: newItem.sku || '',
+                                category: newItem.category || 'Uncategorized',
+                                unit: newItem.unit || 'units',
+                                currentStock: Number(newItem.current_stock),
+                                minStock: Number(newItem.min_stock),
+                                maxStock: Number(newItem.max_stock) || 100,
+                                image: newItem.image_url || 'https://images.unsplash.com/photo-1556740738-b6a63e27c4df'
+                            }]
+                        }))
+                    }
+                }
+            )
+            .subscribe()
+    },
+
+    unsubscribeFromStock: () => {
+        supabase.removeAllChannels()
+    }
 }))

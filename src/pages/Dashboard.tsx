@@ -1,3 +1,5 @@
+import { supabase } from '@/lib/supabase'
+import { useState, useEffect } from 'react'
 import { useOrderStore, type OrderItem } from '@/store/orderStore'
 import { useInventoryStore, type StockItem } from '@/store/inventoryStore'
 import {
@@ -19,24 +21,56 @@ export default function Dashboard() {
     const { orders } = useOrderStore()
     const { stock: inventoryItems } = useInventoryStore()
 
-    // --- Metrics Calculation ---
-    const completedOrders = orders.filter(o => o.status === 'completed')
+    // Real Stats State
+    const [stats, setStats] = useState({
+        revenue: 0,
+        orders: 0,
+        completed: 0,
+        cancelled: 0
+    })
 
-    const totalRevenue = completedOrders.length * 45000 + 1240500
-    const revenueDisplay = formatRupiah(totalRevenue)
+    // Fetch Daily Stats
+    const fetchStats = async () => {
+        try {
+            const { data } = await supabase
+                .from('daily_sales_stats')
+                .select('*')
+                .single()
 
-    // Top Selling
+            if (data) {
+                setStats({
+                    revenue: data.total_revenue || 0,
+                    orders: data.total_orders || 0,
+                    completed: data.completed_orders || 0,
+                    cancelled: data.cancelled_orders || 0
+                })
+            }
+        } catch (error) {
+            console.error('Error fetching stats:', error)
+        }
+    }
+
+    useEffect(() => {
+        fetchStats()
+        // Refresh every minute
+        const interval = setInterval(fetchStats, 60000)
+        return () => clearInterval(interval)
+    }, [])
+
+    const revenueDisplay = formatRupiah(stats.revenue)
+
+    // Top Selling (Client-side from loaded orders for now, or could be another view)
     const allItems = orders.flatMap(o => o.items)
     const itemCounts: Record<string, number> = {}
     allItems.forEach((i: OrderItem) => { itemCounts[i.name] = (itemCounts[i.name] || 0) + i.quantity })
 
     const sortedItems = Object.entries(itemCounts).sort(([, a], [, b]) => b - a)
-    const topItem = sortedItems.length > 0 ? { name: sortedItems[0][0], count: sortedItems[0][1] } : { name: 'Strawberry Shortcake', count: 42 }
+    const topItem = sortedItems.length > 0 ? { name: sortedItems[0][0], count: sortedItems[0][1] } : { name: '-', count: 0 }
 
     // Low Stock
     const lowStockItems = inventoryItems.filter((i: StockItem) => i.currentStock < 10).slice(0, 3)
 
-    // Recent Orders (Take last 3)
+    // Recent Orders (Take last 3 from store)
     const recentOrders = [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 3)
 
     return (

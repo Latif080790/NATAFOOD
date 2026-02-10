@@ -1,7 +1,9 @@
 import { useOrderStore, type Order } from '@/store/orderStore'
 import { formatRupiah, formatDate, formatTime12h } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
+import { useReactToPrint } from 'react-to-print'
+import { Receipt } from '@/components/Receipt'
 import {
     Clock, CreditCard, Mail, Printer, FileText,
     ChevronRight, Search, Phone, ArrowLeft
@@ -13,10 +15,16 @@ import { toast } from '@/store/toastStore'
 type FilterTab = 'all' | 'completed' | 'refunded'
 
 export default function Orders() {
-    const { orders, selectedOrderId, selectOrder } = useOrderStore()
+    const { orders, selectedOrderId, selectOrder, fetchOrders, subscribeToOrders, unsubscribeFromOrders } = useOrderStore()
     const [filter, setFilter] = useState<FilterTab>('all')
     const [searchQuery, setSearchQuery] = useState('')
     const [mobileDetailId, setMobileDetailId] = useState<string | null>(null)
+
+    useEffect(() => {
+        fetchOrders()
+        subscribeToOrders()
+        return () => unsubscribeFromOrders()
+    }, [])
 
     // Filter to completed/refunded orders (order history)
     const historyOrders = orders.filter(o => ['completed', 'refunded'].includes(o.status))
@@ -192,6 +200,11 @@ function OrderListItem({ order, isSelected, onClick }: {
 
 // ─── Order Detail ───────────────────────────────────────────────────────────
 function OrderDetail({ order }: { order: Order }) {
+    const receiptRef = useRef<HTMLDivElement>(null)
+    const handlePrint = useReactToPrint({
+        contentRef: receiptRef,
+        documentTitle: `Receipt-${order.id}`,
+    })
     return (
         <div className="max-w-2xl mx-auto w-full p-4 md:p-6 space-y-5 md:space-y-6 pb-24 md:pb-6">
             {/* Header */}
@@ -337,13 +350,18 @@ function OrderDetail({ order }: { order: Order }) {
                     <Mail className="w-4 h-4 mr-2" />
                     Email
                 </Button>
+
                 <Button
                     variant="outline" className="flex-1"
-                    onClick={() => toast.info('Receipt reprinted!')}
+                    onClick={() => handlePrint()}
                 >
                     <Printer className="w-4 h-4 mr-2" />
                     Cetak Ulang
                 </Button>
+
+                <div style={{ display: 'none' }}>
+                    <Receipt ref={receiptRef} order={order} />
+                </div>
             </div>
         </div>
     )

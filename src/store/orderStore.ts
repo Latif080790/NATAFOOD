@@ -1,14 +1,18 @@
 import { create } from 'zustand'
+import { supabase } from '@/lib/supabase'
+import { toast as customToast } from './toastStore'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-export type OrderStatus = 'waiting' | 'cooking' | 'ready' | 'completed' | 'refunded'
-export type OrderType = 'dine-in' | 'takeaway' | 'delivery'
+export type OrderStatus = 'waiting' | 'cooking' | 'ready' | 'completed' | 'refunded' | 'cancelled'
+export type OrderType = 'dine-in' | 'take-away' | 'delivery'
 
 export interface OrderItem {
+    id?: string
     name: string
     quantity: number
     price: number
     notes?: string
+    productId?: string
 }
 
 export interface OrderPayment {
@@ -35,41 +39,23 @@ export interface Order {
     platform?: string
     server?: string
     guestCount?: number
-    createdAt: Date
+    createdAt: string
+
     // Pricing
     subtotal: number
     discount: number
     discountLabel?: string
     tax: number
     total: number
+
     // Optional details
     customer?: OrderCustomer
     payment?: OrderPayment
     kitchenNotes?: string
 }
 
-// ─── State ──────────────────────────────────────────────────────────────────
-interface OrderState {
-    orders: Order[]
-    selectedOrderId: string | null
-    // Actions
-    addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'status'>) => string
-    updateStatus: (id: string, status: OrderStatus) => void
-    selectOrder: (id: string) => void
-    // Computed helpers
-    getActiveOrders: () => Order[]
-    getCompletedOrders: () => Order[]
-    getOrderById: (id: string) => Order | undefined
-}
-
 // ─── Helpers ────────────────────────────────────────────────────────────────
-const TAX_RATE = 0.08
-let orderSeq = 130
-
-function nextOrderId(): string {
-    orderSeq++
-    return `ORD-${String(orderSeq).padStart(5, '0')}`
-}
+const TAX_RATE = 0.08 // Should ideally come from settings
 
 export function calculateOrderTotals(items: OrderItem[], discountPercent = 0) {
     const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
@@ -79,159 +65,239 @@ export function calculateOrderTotals(items: OrderItem[], discountPercent = 0) {
     return { subtotal, discount, tax, total }
 }
 
-// ─── Mock Data ──────────────────────────────────────────────────────────────
-const now = Date.now()
-const SEED_ORDERS: Order[] = [
-    // Active kitchen orders
-    {
-        id: 'ORD-00128',
-        type: 'dine-in',
-        table: 'Table 04',
-        server: 'Sarah',
-        status: 'waiting',
-        items: [
-            { name: 'Nasi Goreng Spesial', quantity: 2, price: 25000 },
-            { name: 'Es Teh Manis', quantity: 2, price: 5000, notes: 'Less sugar' },
-        ],
-        createdAt: new Date(now - 45_000),
-        subtotal: 60000, discount: 0, tax: 4800, total: 64800,
-        kitchenNotes: 'Level 2 pedas',
-    },
-    {
-        id: 'ORD-00127',
-        type: 'takeaway',
-        server: 'Mike',
-        status: 'waiting',
-        items: [
-            { name: 'Ayam Bakar Madu', quantity: 1, price: 30000 },
-            { name: 'Es Teler Sultan', quantity: 1, price: 18000 },
-        ],
-        createdAt: new Date(now - 2 * 60_000 - 15_000),
-        subtotal: 48000, discount: 0, tax: 3840, total: 51840,
-    },
-    {
-        id: 'ORD-00126',
-        type: 'dine-in',
-        table: 'Table 12',
-        guestCount: 4,
-        status: 'cooking',
-        items: [
-            { name: 'Nasi Goreng Spesial', quantity: 3, price: 25000, notes: 'PRIORITY' },
-            { name: 'Pudding Coklat Lumer', quantity: 1, price: 15000 },
-        ],
-        createdAt: new Date(now - 11 * 60_000),
-        subtotal: 90000, discount: 0, tax: 7200, total: 97200,
-    },
-    {
-        id: 'ORD-00125',
-        type: 'dine-in',
-        table: 'Table 08',
-        status: 'cooking',
-        items: [
-            { name: 'Es Teler Sultan', quantity: 1, price: 18000 },
-            { name: 'Ayam Bakar Madu', quantity: 1, price: 30000, notes: 'No Onion' },
-        ],
-        createdAt: new Date(now - 6 * 60_000),
-        subtotal: 48000, discount: 0, tax: 3840, total: 51840,
-    },
-    {
-        id: 'ORD-00124',
-        type: 'dine-in',
-        table: 'Table 05',
-        status: 'ready',
-        items: [
-            { name: 'Es Teh Manis', quantity: 2, price: 5000, notes: 'Extra Sauce' },
-        ],
-        createdAt: new Date(now - 15 * 60_000),
-        subtotal: 10000, discount: 0, tax: 800, total: 10800,
-    },
-    // Completed orders (visible in Order History)
-    {
-        id: 'ORD-00123',
-        type: 'dine-in',
-        table: 'Table 04',
-        status: 'completed',
-        items: [
-            { name: 'Nasi Goreng Spesial', quantity: 2, price: 25000 },
-            { name: 'Ayam Bakar Madu', quantity: 1, price: 30000 },
-            { name: 'Es Teh Manis', quantity: 2, price: 5000 },
-        ],
-        createdAt: new Date(now - 45 * 60_000),
-        subtotal: 90000, discount: 9000, discountLabel: 'Member 10%', tax: 6480, total: 87480,
-        customer: {
-            name: 'Budi Santoso', initials: 'BS',
-            phone: '+62 812-3456-7890', email: 'budi.s@email.com', memberSince: '2024',
-        },
-        payment: { method: 'QRIS', icon: 'qr_code_2', transactionId: 'TX_QR001', status: 'Approved' },
-    },
-    {
-        id: 'ORD-00122',
-        type: 'takeaway',
-        status: 'completed',
-        items: [
-            { name: 'Pudding Coklat Lumer', quantity: 2, price: 15000 },
-            { name: 'Es Teler Sultan', quantity: 1, price: 18000 },
-        ],
-        createdAt: new Date(now - 90 * 60_000),
-        subtotal: 48000, discount: 0, tax: 3840, total: 51840,
-        payment: { method: 'Cash', icon: 'payments', transactionId: 'TX_CASH002', status: 'Approved' },
-    },
-    {
-        id: 'ORD-00121',
-        type: 'dine-in',
-        table: 'Table 02',
-        status: 'refunded',
-        items: [
-            { name: 'Ayam Bakar Madu', quantity: 1, price: 30000 },
-        ],
-        createdAt: new Date(now - 120 * 60_000),
-        subtotal: 30000, discount: 0, tax: 2400, total: 32400,
-        customer: {
-            name: 'Siti Aminah', initials: 'SA',
-            phone: '+62 878-9012-3456', email: 'siti.a@email.com', memberSince: '2025',
-        },
-        payment: { method: 'Visa **** 4242', icon: 'credit_card', transactionId: 'TX_CC003', status: 'Refunded' },
-        kitchenNotes: 'Pesanan dibatalkan — terlalu lama.',
-    },
-    {
-        id: 'ORD-00120',
-        type: 'delivery',
-        platform: 'GoFood',
-        status: 'completed',
-        items: [
-            { name: 'Nasi Goreng Spesial', quantity: 2, price: 25000 },
-            { name: 'Ayam Bakar Madu', quantity: 1, price: 30000 },
-            { name: 'Es Teh Manis', quantity: 2, price: 5000 },
-        ],
-        createdAt: new Date(now - 150 * 60_000),
-        subtotal: 90000, discount: 0, tax: 7200, total: 97200,
-        payment: { method: 'GoFood Pay', icon: 'account_balance_wallet', transactionId: 'TX_GF004', status: 'Approved' },
-    },
-]
+// ─── State ──────────────────────────────────────────────────────────────────
+interface OrderState {
+    orders: Order[]
+    selectedOrderId: string | null
+    isLoading: boolean
+
+    // Actions
+    fetchOrders: () => Promise<void>
+    subscribeToOrders: () => void
+    unsubscribeFromOrders: () => void
+
+    addOrder: (order: Partial<Order>) => Promise<string | null>
+    updateStatus: (id: string, status: OrderStatus) => Promise<void>
+    selectOrder: (id: string | null) => void
+
+    // Computed helpers
+    getActiveOrders: () => Order[]
+    getCompletedOrders: () => Order[]
+    getOrderById: (id: string) => Order | undefined
+}
 
 // ─── Store ──────────────────────────────────────────────────────────────────
 export const useOrderStore = create<OrderState>((set, get) => ({
-    orders: SEED_ORDERS,
-    selectedOrderId: SEED_ORDERS.find(o => o.status === 'completed')?.id ?? null,
+    orders: [],
+    selectedOrderId: null,
+    isLoading: false,
 
-    addOrder: (orderData) => {
-        const id = nextOrderId()
-        set((state) => ({
-            orders: [{
-                ...orderData,
-                id,
-                status: 'waiting' as OrderStatus,
-                createdAt: new Date(),
-            }, ...state.orders],
-        }))
-        return id
+    fetchOrders: async () => {
+        set({ isLoading: true })
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .select(`
+                    *,
+                    order_items (
+                        id, product_id, product_name, quantity, price, notes
+                    )
+                `)
+                .order('created_at', { ascending: false })
+                .limit(100)
+
+            if (error) throw error
+
+            if (data) {
+                const mappedOrders: Order[] = data.map((o: any) => ({
+                    id: o.id,
+                    type: o.order_type as OrderType,
+                    status: o.status as OrderStatus,
+                    items: o.order_items.map((i: any) => ({
+                        id: i.id,
+                        name: i.product_name,
+                        quantity: i.quantity,
+                        price: i.price,
+                        notes: i.notes,
+                        productId: i.product_id
+                    })),
+                    table: o.table_no,
+                    guestCount: o.guest_count,
+                    createdAt: o.created_at,
+                    subtotal: o.subtotal,
+                    discount: o.discount,
+                    tax: o.tax,
+                    total: o.total_amount,
+                    kitchenNotes: o.kitchen_notes,
+                    payment: o.payment_method ? {
+                        method: o.payment_method,
+                        status: o.payment_status || 'Approved',
+                        transactionId: '',
+                        icon: 'payments'
+                    } : undefined
+                }))
+                set({ orders: mappedOrders })
+            }
+        } catch (error) {
+            console.error('Error fetching orders:', error)
+            customToast.error('Gagal mengambil data pesanan')
+        } finally {
+            set({ isLoading: false })
+        }
     },
 
-    updateStatus: (id, status) => set((state) => ({
-        orders: state.orders.map((o) =>
-            o.id === id ? { ...o, status } : o
-        ),
-    })),
+    subscribeToOrders: () => {
+        const fetchOrder = async (id: string) => {
+            const { data, error } = await supabase
+                .from('orders')
+                .select(`*, order_items (*)`)
+                .eq('id', id)
+                .single()
+
+            if (data && !error) {
+                const newOrder: Order = {
+                    id: data.id,
+                    type: data.order_type as OrderType,
+                    status: data.status as OrderStatus,
+                    items: data.order_items.map((i: any) => ({
+                        id: i.id,
+                        name: i.product_name,
+                        quantity: i.quantity,
+                        price: i.price,
+                        notes: i.notes,
+                        productId: i.product_id
+                    })),
+                    table: data.table_no,
+                    guestCount: data.guest_count,
+                    createdAt: data.created_at,
+                    subtotal: data.subtotal,
+                    discount: data.discount,
+                    tax: data.tax,
+                    total: data.total_amount,
+                    kitchenNotes: data.kitchen_notes,
+                    payment: data.payment_method ? {
+                        method: data.payment_method,
+                        status: data.payment_status || 'Approved',
+                        transactionId: '',
+                        icon: 'payments'
+                    } : undefined
+                }
+
+                set(state => {
+                    const exists = state.orders.find(o => o.id === newOrder.id)
+                    if (exists) {
+                        return { orders: state.orders.map(o => o.id === newOrder.id ? newOrder : o) }
+                    }
+                    return { orders: [newOrder, ...state.orders] }
+                })
+            }
+        }
+
+        supabase
+            .channel('orders-channel')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'orders' },
+                async (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        setTimeout(() => fetchOrder(payload.new.id), 1000)
+                    } else if (payload.eventType === 'UPDATE') {
+                        set(state => ({
+                            orders: state.orders.map(o =>
+                                o.id === payload.new.id
+                                    ? { ...o, status: payload.new.status }
+                                    : o
+                            )
+                        }))
+                        fetchOrder(payload.new.id)
+                    }
+                }
+            )
+            .subscribe()
+    },
+
+    unsubscribeFromOrders: () => {
+        supabase.removeAllChannels()
+    },
+
+    addOrder: async (orderData) => {
+        try {
+            const { data: order, error: orderError } = await supabase
+                .from('orders')
+                .insert({
+                    table_no: orderData.table,
+                    order_type: orderData.type,
+                    status: 'waiting',
+                    guest_count: orderData.guestCount || 1,
+                    subtotal: orderData.subtotal,
+                    tax: orderData.tax,
+                    discount: orderData.discount,
+                    total_amount: orderData.total,
+                    payment_method: orderData.payment?.method,
+                    kitchen_notes: orderData.kitchenNotes
+                })
+                .select()
+                .single()
+
+            if (orderError) throw orderError
+
+            if (orderData.items && orderData.items.length > 0) {
+                const itemsToInsert = orderData.items.map(item => ({
+                    order_id: order.id,
+                    product_id: item.productId,
+                    product_name: item.name,
+                    quantity: item.quantity,
+                    price: item.price,
+                    notes: item.notes
+                }))
+
+                const { error: itemsError } = await supabase
+                    .from('order_items')
+                    .insert(itemsToInsert)
+
+                if (itemsError) throw itemsError
+            }
+
+            return order.id
+
+        } catch (error) {
+            console.error('Error creating order:', error)
+            customToast.error('Gagal membuat pesanan')
+            return null
+        }
+    },
+
+    updateStatus: async (id, status) => {
+        set((state) => ({
+            orders: state.orders.map((o) =>
+                o.id === id ? { ...o, status } : o
+            ),
+        }))
+
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .update({ status })
+                .eq('id', id)
+
+            if (error) throw error
+
+            if (error) throw error
+
+            // NOTE: Stock deduction is now handled by Supabase Database Triggers
+            // See: supabase_schema_v3_triggers.sql
+
+        } catch (error) {
+            console.error('Failed to update status:', error)
+            customToast.error('Gagal update status')
+            // Revert optimistic update
+            set((state) => ({
+                orders: state.orders.map((o) =>
+                    o.id === id ? { ...o, status: 'ready' } : o
+                ),
+            }))
+        }
+    },
 
     selectOrder: (id) => set({ selectedOrderId: id }),
 
@@ -239,7 +305,7 @@ export const useOrderStore = create<OrderState>((set, get) => ({
         get().orders.filter(o => ['waiting', 'cooking', 'ready'].includes(o.status)),
 
     getCompletedOrders: () =>
-        get().orders.filter(o => ['completed', 'refunded'].includes(o.status)),
+        get().orders.filter(o => ['completed', 'refunded', 'cancelled'].includes(o.status)),
 
     getOrderById: (id) => get().orders.find(o => o.id === id),
 }))

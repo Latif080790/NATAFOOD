@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useInventoryStore, type StockItem } from '@/store/inventoryStore'
 import { cn } from '@/lib/utils'
 import { Search, Plus, Minus, Package, AlertTriangle, CheckCircle, TrendingDown, MoreVertical } from 'lucide-react'
@@ -17,9 +17,15 @@ function getStockStatus(item: StockItem): 'good' | 'low' | 'critical' {
 }
 
 export default function Inventory() {
-    const { stock, updateStock } = useInventoryStore()
+    const { stock, updateStock, fetchStock, subscribeToStock, unsubscribeFromStock } = useInventoryStore()
     const [searchQuery, setSearchQuery] = useState('')
     const [activeCategory, setActiveCategory] = useState('All Ingredients')
+
+    useEffect(() => {
+        fetchStock()
+        subscribeToStock()
+        return () => unsubscribeFromStock()
+    }, [])
 
     const filteredStock = stock.filter(item => {
         const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.sku.toLowerCase().includes(searchQuery.toLowerCase())

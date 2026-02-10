@@ -20,14 +20,23 @@ const TAB_CONFIG: { key: KitchenTab; label: string; color: string; activeColor: 
 ]
 
 export default function Kitchen() {
-    const { orders, updateStatus } = useOrderStore()
+    const { orders, updateStatus, fetchOrders, subscribeToOrders, unsubscribeFromOrders } = useOrderStore()
     const activeOrders = orders.filter(o => ['waiting', 'cooking', 'ready'].includes(o.status))
     const [currentTime, setCurrentTime] = useState(new Date())
     const [mobileTab, setMobileTab] = useState<KitchenTab>('waiting')
 
     useEffect(() => {
+        // Initial fetch
+        fetchOrders()
+        // Realtime subscription
+        subscribeToOrders()
+
         const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-        return () => clearInterval(timer)
+
+        return () => {
+            clearInterval(timer)
+            unsubscribeFromOrders()
+        }
     }, [])
 
     const handleDragStart = (e: React.DragEvent, id: string) => {

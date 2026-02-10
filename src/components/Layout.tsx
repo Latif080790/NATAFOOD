@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, useLocation, Outlet } from 'react-router-dom'
-import { LayoutDashboard, ShoppingCart, ChefHat, History, Package, Settings, Menu, ScanLine } from 'lucide-react'
+import { LayoutDashboard, ShoppingCart, ChefHat, History, Package, Settings, Menu, ScanLine, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useAuthStore } from '@/store/authStore'
 
 const NAV_ITEMS = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -88,6 +89,25 @@ export default function Layout() {
                         )
                     })}
                 </nav>
+
+                {/* Logout Button */}
+                <div className="p-4 border-t">
+                    <Button
+                        variant="ghost"
+                        className={cn(
+                            "w-full justify-start gap-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10",
+                            !isSidebarOpen && "justify-center px-0"
+                        )}
+                        onClick={async () => {
+                            await useAuthStore.getState().signOut()
+                            // AuthGuard will handle redirect, or we can force it
+                            window.location.href = '/login'
+                        }}
+                    >
+                        <LogOut className="h-5 w-5" />
+                        {isSidebarOpen && <span className="truncate">Logout</span>}
+                    </Button>
+                </div>
             </aside>
 
             {/* Main Content Area */}
