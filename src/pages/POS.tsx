@@ -7,6 +7,7 @@ import { ProductDetailDialog } from '@/components/ProductDetailDialog'
 import { CheckoutDialog } from '@/components/CheckoutDialog'
 import { Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from '@/store/toastStore'
 
 // Mock Data
 const MENU_ITEMS: MenuItem[] = [
@@ -64,8 +65,7 @@ export default function POS() {
 
     const handleCheckoutSuccess = () => {
         setIsCheckoutOpen(false)
-        // Maybe show success toast
-        alert("Pembayaran Berhasil! Struk dicetak.")
+        toast.success('Pembayaran berhasil! Struk sedang dicetak.')
     }
 
     const filteredItems = MENU_ITEMS.filter(item =>

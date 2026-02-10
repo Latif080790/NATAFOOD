@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useOrderStore, type KitchenOrder, type OrderStatus } from '@/store/orderStore'
+import { useOrderStore, type Order, type OrderStatus } from '@/store/orderStore'
 import { cn } from '@/lib/utils'
 import { Clock, Play, CheckCircle, RotateCcw, Utensils, AlertTriangle, ChefHat } from 'lucide-react'
 

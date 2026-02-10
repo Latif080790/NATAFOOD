@@ -2,10 +2,19 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { QrCode, MapPin, Phone, CheckCircle } from 'lucide-react'
+import { toast } from '@/store/toastStore'
+
+interface ScannedData {
+    orderId: string
+    customer: string
+    address: string
+    phone: string
+    items: string[]
+}
 
 export default function Scan() {
     const [scanning, setScanning] = useState(true)
-    const [scannedData, setScannedData] = useState<any>(null)
+    const [scannedData, setScannedData] = useState<ScannedData | null>(null)
 
     // Mock scan effect
     useEffect(() => {
@@ -19,16 +28,16 @@ export default function Scan() {
                     phone: '0812-3456-7890',
                     items: ['2x Nasi Goreng', '1x Es Teh Manis']
                 })
-            }, 3000) // 3 seconds "scanning"
+            }, 3000)
             return () => clearTimeout(timer)
         }
     }, [scanning])
 
     const handleDeliver = () => {
-        // Open WA logic mock
-        const message = `Halo Ibu Budi, pesanan ${scannedData.orderId} sedang diantar ke ${scannedData.address}.`
+        if (!scannedData) return
+        const message = `Halo ${scannedData.customer}, pesanan ${scannedData.orderId} sedang diantar ke ${scannedData.address}.`
         window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
-        alert("Status updated to On Delivery")
+        toast.success('Status diperbarui: On Delivery')
         setScannedData(null)
         setScanning(true)
     }
@@ -44,7 +53,7 @@ export default function Scan() {
                     <p className="text-xl font-bold text-muted-foreground">Mencari QR Code...</p>
                     <p className="text-sm text-center">Arahkan kamera ke struk atau paket.</p>
                 </div>
-            ) : (
+            ) : scannedData ? (
                 <Card className="w-full max-w-md animate-in slide-in-from-bottom duration-500">
                     <CardHeader className="bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-center pb-2">
                         <CheckCircle className="h-12 w-12 mx-auto mb-2" />
@@ -69,7 +78,7 @@ export default function Scan() {
                         <div className="bg-muted p-2 rounded text-sm">
                             <p className="font-medium mb-1">Detail Pesanan:</p>
                             <ul className="list-disc list-inside">
-                                {scannedData.items.map((i: string, idx: number) => (
+                                {scannedData.items.map((i, idx) => (
                                     <li key={idx}>{i}</li>
                                 ))}
                             </ul>
@@ -81,9 +90,7 @@ export default function Scan() {
                         </Button>
                     </CardFooter>
                 </Card>
-            )}
-
-            {!scanning && !scannedData && (
+            ) : (
                 <Button onClick={() => setScanning(true)}>Scan Ulang</Button>
             )}
         </div>

@@ -1,105 +1,245 @@
 import { create } from 'zustand'
 
-export type OrderStatus = 'waiting' | 'cooking' | 'ready' | 'completed'
+// ─── Types ──────────────────────────────────────────────────────────────────
+export type OrderStatus = 'waiting' | 'cooking' | 'ready' | 'completed' | 'refunded'
+export type OrderType = 'dine-in' | 'takeaway' | 'delivery'
 
 export interface OrderItem {
     name: string
     quantity: number
+    price: number
     notes?: string
 }
 
-export interface KitchenOrder {
+export interface OrderPayment {
+    method: string
+    icon: string
+    transactionId: string
+    status: 'Approved' | 'Refunded' | 'Pending'
+}
+
+export interface OrderCustomer {
+    name: string
+    initials: string
+    phone: string
+    email: string
+    memberSince: string
+}
+
+export interface Order {
     id: string
-    items: OrderItem[]
+    type: OrderType
     status: OrderStatus
-    createdAt: Date
-    type: 'dine-in' | 'takeaway' | 'delivery'
+    items: OrderItem[]
     table?: string
+    platform?: string
     server?: string
     guestCount?: number
+    createdAt: Date
+    // Pricing
+    subtotal: number
+    discount: number
+    discountLabel?: string
+    tax: number
+    total: number
+    // Optional details
+    customer?: OrderCustomer
+    payment?: OrderPayment
+    kitchenNotes?: string
 }
 
+// ─── State ──────────────────────────────────────────────────────────────────
 interface OrderState {
-    orders: KitchenOrder[]
-    addOrder: (order: Omit<KitchenOrder, 'id' | 'createdAt' | 'status'>) => void
+    orders: Order[]
+    selectedOrderId: string | null
+    // Actions
+    addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'status'>) => string
     updateStatus: (id: string, status: OrderStatus) => void
+    selectOrder: (id: string) => void
+    // Computed helpers
+    getActiveOrders: () => Order[]
+    getCompletedOrders: () => Order[]
+    getOrderById: (id: string) => Order | undefined
 }
 
-// Mock initial data
-const INITIAL_ORDERS: KitchenOrder[] = [
+// ─── Helpers ────────────────────────────────────────────────────────────────
+const TAX_RATE = 0.08
+let orderSeq = 130
+
+function nextOrderId(): string {
+    orderSeq++
+    return `ORD-${String(orderSeq).padStart(5, '0')}`
+}
+
+export function calculateOrderTotals(items: OrderItem[], discountPercent = 0) {
+    const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+    const discount = Math.round(subtotal * discountPercent)
+    const tax = Math.round((subtotal - discount) * TAX_RATE)
+    const total = subtotal - discount + tax
+    return { subtotal, discount, tax, total }
+}
+
+// ─── Mock Data ──────────────────────────────────────────────────────────────
+const now = Date.now()
+const SEED_ORDERS: Order[] = [
+    // Active kitchen orders
     {
-        id: '105',
+        id: 'ORD-00128',
         type: 'dine-in',
         table: 'Table 04',
         server: 'Sarah',
-        items: [{ name: 'Mango Sticky Rice', quantity: 1 }, { name: 'Iced Americano', quantity: 1, notes: 'Less sugar' }],
         status: 'waiting',
-        createdAt: new Date(Date.now() - 1000 * 45) // 45 secs ago
+        items: [
+            { name: 'Nasi Goreng Spesial', quantity: 2, price: 25000 },
+            { name: 'Es Teh Manis', quantity: 2, price: 5000, notes: 'Less sugar' },
+        ],
+        createdAt: new Date(now - 45_000),
+        subtotal: 60000, discount: 0, tax: 4800, total: 64800,
+        kitchenNotes: 'Level 2 pedas',
     },
     {
-        id: '104',
+        id: 'ORD-00127',
         type: 'takeaway',
-        server: 'Mike', // Guest name for takeaway
-        items: [{ name: 'Croffle Original', quantity: 2 }, { name: 'Vanilla Latte', quantity: 1 }],
+        server: 'Mike',
         status: 'waiting',
-        createdAt: new Date(Date.now() - 1000 * 60 * 2 - 1000 * 15) // 2m 15s ago
+        items: [
+            { name: 'Ayam Bakar Madu', quantity: 1, price: 30000 },
+            { name: 'Es Teler Sultan', quantity: 1, price: 18000 },
+        ],
+        createdAt: new Date(now - 2 * 60_000 - 15_000),
+        subtotal: 48000, discount: 0, tax: 3840, total: 51840,
     },
     {
-        id: '098',
+        id: 'ORD-00126',
         type: 'dine-in',
         table: 'Table 12',
         guestCount: 4,
-        items: [{ name: 'Pancakes Stack', quantity: 3, notes: 'PRIORITY' }, { name: 'Choco Lava', quantity: 1 }],
         status: 'cooking',
-        createdAt: new Date(Date.now() - 1000 * 60 * 11 - 1000 * 32) // 11m 32s ago (Critical)
+        items: [
+            { name: 'Nasi Goreng Spesial', quantity: 3, price: 25000, notes: 'PRIORITY' },
+            { name: 'Pudding Coklat Lumer', quantity: 1, price: 15000 },
+        ],
+        createdAt: new Date(now - 11 * 60_000),
+        subtotal: 90000, discount: 0, tax: 7200, total: 97200,
     },
     {
-        id: '099',
+        id: 'ORD-00125',
         type: 'dine-in',
         table: 'Table 08',
-        items: [{ name: 'Es Teler Special', quantity: 1 }, { name: 'Avocado Toast', quantity: 1, notes: 'No Onion' }],
         status: 'cooking',
-        createdAt: new Date(Date.now() - 1000 * 60 * 6 - 1000 * 15) // 6m 15s ago (Warning)
+        items: [
+            { name: 'Es Teler Sultan', quantity: 1, price: 18000 },
+            { name: 'Ayam Bakar Madu', quantity: 1, price: 30000, notes: 'No Onion' },
+        ],
+        createdAt: new Date(now - 6 * 60_000),
+        subtotal: 48000, discount: 0, tax: 3840, total: 51840,
     },
     {
-        id: '102',
+        id: 'ORD-00124',
         type: 'dine-in',
         table: 'Table 05',
-        items: [{ name: 'French Fries', quantity: 2, notes: 'Extra Sauce' }],
-        status: 'cooking',
-        createdAt: new Date(Date.now() - 1000 * 60 * 1 - 1000 * 20) // 1m 20s ago
+        status: 'ready',
+        items: [
+            { name: 'Es Teh Manis', quantity: 2, price: 5000, notes: 'Extra Sauce' },
+        ],
+        createdAt: new Date(now - 15 * 60_000),
+        subtotal: 10000, discount: 0, tax: 800, total: 10800,
     },
+    // Completed orders (visible in Order History)
     {
-        id: '095',
+        id: 'ORD-00123',
         type: 'dine-in',
-        table: 'Table 01',
-        items: [{ name: 'Hot Coffee', quantity: 2 }],
-        status: 'ready',
-        createdAt: new Date(Date.now() - 1000 * 60 * 15) // 15 mins ago
+        table: 'Table 04',
+        status: 'completed',
+        items: [
+            { name: 'Nasi Goreng Spesial', quantity: 2, price: 25000 },
+            { name: 'Ayam Bakar Madu', quantity: 1, price: 30000 },
+            { name: 'Es Teh Manis', quantity: 2, price: 5000 },
+        ],
+        createdAt: new Date(now - 45 * 60_000),
+        subtotal: 90000, discount: 9000, discountLabel: 'Member 10%', tax: 6480, total: 87480,
+        customer: {
+            name: 'Budi Santoso', initials: 'BS',
+            phone: '+62 812-3456-7890', email: 'budi.s@email.com', memberSince: '2024',
+        },
+        payment: { method: 'QRIS', icon: 'qr_code_2', transactionId: 'TX_QR001', status: 'Approved' },
     },
     {
-        id: '097',
+        id: 'ORD-00122',
         type: 'takeaway',
-        server: 'Waiter Called',
-        items: [{ name: 'Caesar Salad', quantity: 1 }, { name: 'Mushroom Soup', quantity: 1 }],
-        status: 'ready',
-        createdAt: new Date(Date.now() - 1000 * 60 * 18) // 18 mins ago
-    }
+        status: 'completed',
+        items: [
+            { name: 'Pudding Coklat Lumer', quantity: 2, price: 15000 },
+            { name: 'Es Teler Sultan', quantity: 1, price: 18000 },
+        ],
+        createdAt: new Date(now - 90 * 60_000),
+        subtotal: 48000, discount: 0, tax: 3840, total: 51840,
+        payment: { method: 'Cash', icon: 'payments', transactionId: 'TX_CASH002', status: 'Approved' },
+    },
+    {
+        id: 'ORD-00121',
+        type: 'dine-in',
+        table: 'Table 02',
+        status: 'refunded',
+        items: [
+            { name: 'Ayam Bakar Madu', quantity: 1, price: 30000 },
+        ],
+        createdAt: new Date(now - 120 * 60_000),
+        subtotal: 30000, discount: 0, tax: 2400, total: 32400,
+        customer: {
+            name: 'Siti Aminah', initials: 'SA',
+            phone: '+62 878-9012-3456', email: 'siti.a@email.com', memberSince: '2025',
+        },
+        payment: { method: 'Visa **** 4242', icon: 'credit_card', transactionId: 'TX_CC003', status: 'Refunded' },
+        kitchenNotes: 'Pesanan dibatalkan — terlalu lama.',
+    },
+    {
+        id: 'ORD-00120',
+        type: 'delivery',
+        platform: 'GoFood',
+        status: 'completed',
+        items: [
+            { name: 'Nasi Goreng Spesial', quantity: 2, price: 25000 },
+            { name: 'Ayam Bakar Madu', quantity: 1, price: 30000 },
+            { name: 'Es Teh Manis', quantity: 2, price: 5000 },
+        ],
+        createdAt: new Date(now - 150 * 60_000),
+        subtotal: 90000, discount: 0, tax: 7200, total: 97200,
+        payment: { method: 'GoFood Pay', icon: 'account_balance_wallet', transactionId: 'TX_GF004', status: 'Approved' },
+    },
 ]
 
-export const useOrderStore = create<OrderState>((set) => ({
-    orders: INITIAL_ORDERS,
-    addOrder: (orderData) => set((state) => ({
-        orders: [...state.orders, {
-            ...orderData,
-            id: Math.random().toString(36).substr(2, 9),
-            status: 'waiting',
-            createdAt: new Date()
-        }]
-    })),
+// ─── Store ──────────────────────────────────────────────────────────────────
+export const useOrderStore = create<OrderState>((set, get) => ({
+    orders: SEED_ORDERS,
+    selectedOrderId: SEED_ORDERS.find(o => o.status === 'completed')?.id ?? null,
+
+    addOrder: (orderData) => {
+        const id = nextOrderId()
+        set((state) => ({
+            orders: [{
+                ...orderData,
+                id,
+                status: 'waiting' as OrderStatus,
+                createdAt: new Date(),
+            }, ...state.orders],
+        }))
+        return id
+    },
+
     updateStatus: (id, status) => set((state) => ({
         orders: state.orders.map((o) =>
             o.id === id ? { ...o, status } : o
-        )
+        ),
     })),
+
+    selectOrder: (id) => set({ selectedOrderId: id }),
+
+    getActiveOrders: () =>
+        get().orders.filter(o => ['waiting', 'cooking', 'ready'].includes(o.status)),
+
+    getCompletedOrders: () =>
+        get().orders.filter(o => ['completed', 'refunded'].includes(o.status)),
+
+    getOrderById: (id) => get().orders.find(o => o.id === id),
 }))
