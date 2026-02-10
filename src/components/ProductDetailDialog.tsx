@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import type { MenuItem } from '@/store/cartStore'
 import { Input } from '@/components/ui/input'
 import { Plus, Minus } from 'lucide-react'
+import { formatRupiah } from '@/lib/format'
 
 function Label({ children, className }: { children: React.ReactNode, className?: string }) {
     return <label className={"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 " + className}>{children}</label>
@@ -50,7 +51,7 @@ export function ProductDetailDialog({ isOpen, onClose, product, onAddToCart }: P
                     <div>
                         <h2 className="font-bold text-xl">{product.name}</h2>
                         <p className="text-primary font-bold text-lg">
-                            {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(product.price)}
+                            {formatRupiah(product.price)}
                         </p>
                     </div>
                 </div>
@@ -107,7 +108,7 @@ export function ProductDetailDialog({ isOpen, onClose, product, onAddToCart }: P
                         </Button>
                     </div>
                     <Button size="lg" className="px-8 font-bold" onClick={handleAdd}>
-                        Add to Order - {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(product.price * quantity)}
+                        Add to Order - {formatRupiah(product.price * quantity)}
                     </Button>
                 </div>
             </div>

@@ -13,6 +13,7 @@ import {
     ArrowUpRight
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatRupiah } from '@/lib/format'
 
 export default function Dashboard() {
     const { orders } = useOrderStore()
@@ -22,7 +23,7 @@ export default function Dashboard() {
     const completedOrders = orders.filter(o => o.status === 'completed')
 
     const totalRevenue = completedOrders.length * 45000 + 1240500
-    const revenueDisplay = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(totalRevenue)
+    const revenueDisplay = formatRupiah(totalRevenue)
 
     // Top Selling
     const allItems = orders.flatMap(o => o.items)
@@ -71,7 +72,7 @@ export default function Dashboard() {
                 {/* Hero Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {/* Card 1: Revenue */}
-                    <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-primary/5 hover:border-primary/20 transition-all duration-300 group flex flex-col justify-between h-64">
+                    <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-primary/5 hover:border-primary/20 transition-all duration-300 group flex flex-col justify-between min-h-[200px] md:h-64">
                         <div className="flex items-start justify-between">
                             <div>
                                 <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Net Revenue (Omset)</h2>
@@ -98,7 +99,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* Card 2: Top Selling Item */}
-                    <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-primary/5 hover:border-primary/20 transition-all duration-300 h-64 flex flex-col relative overflow-hidden group">
+                    <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-primary/5 hover:border-primary/20 transition-all duration-300 min-h-[200px] md:h-64 flex flex-col relative overflow-hidden group">
                         <div className="absolute top-0 right-0 p-6 z-10">
                             <span className="bg-white/90 dark:bg-surface-dark/90 backdrop-blur text-primary text-xs font-bold px-3 py-1 rounded-full shadow-sm border border-primary/10">#1 Bestseller</span>
                         </div>
@@ -121,7 +122,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* Card 3: Stock Health Alert */}
-                    <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-primary/5 hover:border-primary/20 transition-all duration-300 h-64 flex flex-col">
+                    <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-primary/5 hover:border-primary/20 transition-all duration-300 min-h-[200px] md:h-64 flex flex-col">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Low Stock Alert</h2>
                             <button className="text-xs font-medium text-primary hover:text-primary-dark hover:underline flex items-center">

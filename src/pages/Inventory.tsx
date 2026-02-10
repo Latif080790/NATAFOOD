@@ -45,7 +45,7 @@ export default function Inventory() {
                         <p className="text-xs text-gray-500 dark:text-gray-400">NataFood • Main Branch</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-4 flex-1 max-w-2xl mx-12">
+                <div className="flex items-center gap-4 flex-1 max-w-2xl md:mx-12">
                     <div className="relative flex-1 group">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary transition-colors" />
                         <input
@@ -60,7 +60,7 @@ export default function Inventory() {
                 <div className="flex items-center gap-3">
                     <button className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-orange-600 transition-colors font-medium shadow-lg shadow-primary/20">
                         <Plus className="w-5 h-5" />
-                        <span className="hidden sm:inline">Add Item</span>
+                        <span className="hidden md:inline">Add Item</span>
                     </button>
                 </div>
             </header>

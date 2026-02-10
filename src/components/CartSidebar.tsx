@@ -1,5 +1,6 @@
 import { useCartStore } from '@/store/cartStore'
 import { Trash2, Plus, Minus, User, ChevronRight, CreditCard, Banknote, QrCode, MoreHorizontal, ArrowRight } from 'lucide-react'
+import { formatRupiah } from '@/lib/format'
 
 export function CartSidebar({ onCheckout }: { onCheckout?: () => void }) {
     const { items, updateQuantity, total, clearCart } = useCartStore()
@@ -69,7 +70,7 @@ export function CartSidebar({ onCheckout }: { onCheckout?: () => void }) {
                             <div className="flex justify-between items-start mb-1">
                                 <h4 className="font-bold text-slate-800 dark:text-white text-sm line-clamp-1">{item.name}</h4>
                                 <span className="font-bold text-slate-800 dark:text-white text-sm">
-                                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(item.price * item.quantity)}
+                                    {formatRupiah(item.price * item.quantity)}
                                 </span>
                             </div>
                             <div className="flex flex-wrap gap-1 mb-2 min-h-[1.25rem]">
@@ -106,16 +107,16 @@ export function CartSidebar({ onCheckout }: { onCheckout?: () => void }) {
                 <div className="space-y-2 mb-4">
                     <div className="flex justify-between text-slate-500 dark:text-slate-400 text-sm">
                         <span>Subtotal</span>
-                        <span>{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(cartTotal)}</span>
+                        <span>{formatRupiah(cartTotal)}</span>
                     </div>
                     <div className="flex justify-between text-slate-500 dark:text-slate-400 text-sm">
                         <span>Tax (10%)</span>
-                        <span>{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(tax)}</span>
+                        <span>{formatRupiah(tax)}</span>
                     </div>
                     <div className="flex justify-between items-center pt-2 border-t border-dashed border-slate-200 dark:border-zinc-700 mt-2">
                         <span className="text-slate-800 dark:text-white font-bold text-lg">Total</span>
                         <span className="text-primary font-bold text-2xl">
-                            {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(grandTotal)}
+                            {formatRupiah(grandTotal)}
                         </span>
                     </div>
                 </div>
@@ -144,7 +145,7 @@ export function CartSidebar({ onCheckout }: { onCheckout?: () => void }) {
                     onClick={onCheckout}
                     className="w-full bg-primary hover:bg-orange-600 text-white font-bold text-lg py-4 rounded-xl shadow-lg shadow-primary/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group"
                 >
-                    Bayar {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(grandTotal)}
+                    Bayar {formatRupiah(grandTotal)}
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
             </div>

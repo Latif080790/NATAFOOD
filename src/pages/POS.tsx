@@ -5,6 +5,7 @@ import { CartSidebar } from '@/components/CartSidebar'
 import { useCartStore, type MenuItem } from '@/store/cartStore'
 import { ProductDetailDialog } from '@/components/ProductDetailDialog'
 import { CheckoutDialog } from '@/components/CheckoutDialog'
+import { MobileCartDrawer, CartFAB } from '@/components/MobileCartDrawer'
 import { Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from '@/store/toastStore'
@@ -57,6 +58,7 @@ export default function POS() {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null)
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
+    const [isMobileCartOpen, setIsMobileCartOpen] = useState(false)
     const addItem = useCartStore((state) => state.addItem)
 
     const handleAddToOrder = (item: MenuItem, qty: number, notes: string) => {
@@ -149,18 +151,6 @@ export default function POS() {
 
             {/* Cart Sidebar */}
             <div className="hidden md:block w-96 h-full flex-shrink-0 bg-card border-l">
-                {/* We need to pass toggle function to CartSidebar to open checkout */}
-                {/* For now, CartSidebar has internal button. We need to extract handleCheckout to props if we want to control it here, or just wrap CartSidebar to intercept click.
-            Actually, let's modify CartSidebar to accept onCheckout prop. 
-            Or better, let's just make CartSidebar local state if needed.
-            But CartSidebar is separate file. 
-            I will modify CartSidebar to accept props, OR I will duplicate the simple cart logic here to save file jumping?
-            No, better to just edit CartSidebar.
-            Wait, I haven't edited CartSidebar to accept props. 
-            I will recreate CartSidebar inside POS using the code from `src/components/CartSidebar.tsx` but adapted, or just update `CartSidebar.tsx` to accept the prop.
-            
-            Let's update CartSidebar.tsx to accept `onCheckout`.
-         */}
                 <CartSidebar onCheckout={() => setIsCheckoutOpen(true)} />
             </div>
 
@@ -170,6 +160,19 @@ export default function POS() {
                 product={selectedProduct}
                 onAddToCart={handleAddToOrder}
             />
+
+            {/* Mobile Cart FAB + Drawer */}
+            <div className="md:hidden">
+                <CartFAB onClick={() => setIsMobileCartOpen(true)} />
+                <MobileCartDrawer
+                    isOpen={isMobileCartOpen}
+                    onClose={() => setIsMobileCartOpen(false)}
+                    onCheckout={() => {
+                        setIsMobileCartOpen(false)
+                        setIsCheckoutOpen(true)
+                    }}
+                />
+            </div>
 
             <CheckoutDialog
                 isOpen={isCheckoutOpen}

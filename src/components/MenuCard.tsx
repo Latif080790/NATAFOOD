@@ -1,6 +1,7 @@
 import type { MenuItem } from '@/store/cartStore'
 import { Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatRupiah } from '@/lib/format'
 
 export function MenuCard({ item, onAdd, quantity = 0 }: { item: MenuItem, onAdd: (item: MenuItem) => void, quantity?: number }) {
     const isAvailable = item.status === 'available'
@@ -39,21 +40,21 @@ export function MenuCard({ item, onAdd, quantity = 0 }: { item: MenuItem, onAdd:
             </div>
 
             <div className="px-1 flex flex-col flex-1">
-                <h3 className="font-bold text-slate-800 dark:text-white text-lg leading-tight mb-1 line-clamp-1">{item.name}</h3>
+                <h3 className="font-bold text-slate-800 dark:text-white text-sm md:text-lg leading-tight mb-1 line-clamp-1">{item.name}</h3>
                 <p className="text-xs text-slate-400 mb-3">{item.category}</p>
 
                 <div className="flex items-center justify-between mt-auto">
                     <span className={cn("font-bold text-lg", isSelected ? "text-primary" : "text-slate-800 dark:text-slate-200")}>
-                        {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(item.price)}
+                        {formatRupiah(item.price)}
                     </span>
                     <button
                         disabled={!isAvailable}
                         className={cn(
-                            "w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm",
+                            "w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-colors shadow-sm",
                             isSelected ? "bg-primary text-white hover:bg-orange-600" : "bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-slate-300 hover:bg-primary hover:text-white"
                         )}
                     >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-5 w-5 md:h-4 md:w-4" />
                     </button>
                 </div>
             </div>
