@@ -82,8 +82,8 @@ export default function Kitchen() {
                 <div className="flex items-center gap-2 md:gap-4">
                     <button className="hidden md:flex items-center gap-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors px-4 py-2 rounded-lg group">
                         <div className="flex flex-col items-start leading-none">
-                            <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">Batching Summary</span>
-                            <span className="text-sm font-bold text-gray-800 dark:text-gray-200">15 Es Teler, 8 Croffles</span>
+                            <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">Active Orders</span>
+                            <span className="text-sm font-bold text-gray-800 dark:text-gray-200">{activeOrders.length} in queue</span>
                         </div>
                     </button>
                     <div className="text-right">

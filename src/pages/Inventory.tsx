@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useInventoryStore, type StockItem } from '@/store/inventoryStore'
 import { cn } from '@/lib/utils'
-import { Search, Plus, Minus, Package, AlertTriangle, CheckCircle, TrendingDown, MoreVertical } from 'lucide-react'
+import { Search, Plus, Minus, Package, AlertTriangle, CheckCircle, TrendingDown, MoreVertical, X, Pencil, Trash2 } from 'lucide-react'
 
 const CATEGORIES = ['All Ingredients', 'Dairy', 'Dry Goods', 'Fresh', 'Syrups', 'Packaging']
 
@@ -16,10 +17,232 @@ function getStockStatus(item: StockItem): 'good' | 'low' | 'critical' {
     return 'good'
 }
 
+// ─── Add/Edit Dialog ───────────────────────────────────────────────────────
+interface InventoryDialogProps {
+    open: boolean
+    onClose: () => void
+    editItem?: StockItem | null
+}
+
+function InventoryDialog({ open, onClose, editItem }: InventoryDialogProps) {
+    const { addItem, fetchStock } = useInventoryStore()
+    const [form, setForm] = useState({
+        name: '', sku: '', category: 'Dairy', unit: 'kg',
+        currentStock: 0, minStock: 5, maxStock: 100, image: ''
+    })
+    const [saving, setSaving] = useState(false)
+
+    useEffect(() => {
+        if (editItem) {
+            setForm({
+                name: editItem.name,
+                sku: editItem.sku,
+                category: editItem.category,
+                unit: editItem.unit,
+                currentStock: editItem.currentStock,
+                minStock: editItem.minStock,
+                maxStock: editItem.maxStock,
+                image: editItem.image,
+            })
+        } else {
+            setForm({ name: '', sku: '', category: 'Dairy', unit: 'kg', currentStock: 0, minStock: 5, maxStock: 100, image: '' })
+        }
+    }, [editItem, open])
+
+    if (!open) return null
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setSaving(true)
+        try {
+            if (editItem) {
+                // For edit, we update the stock via Supabase directly
+                const { supabase } = await import('@/lib/supabase')
+                const { error } = await supabase
+                    .from('inventory')
+                    .update({
+                        name: form.name,
+                        sku: form.sku,
+                        category: form.category,
+                        unit: form.unit,
+                        current_stock: form.currentStock,
+                        min_stock: form.minStock,
+                        max_stock: form.maxStock,
+                        image_url: form.image || null,
+                    })
+                    .eq('id', editItem.id)
+                if (error) throw error
+                const { toast } = await import('@/store/toastStore')
+                toast.success('Item berhasil diperbarui')
+                fetchStock()
+            } else {
+                await addItem(form)
+            }
+            onClose()
+        } catch (err) {
+            console.error(err)
+            const { toast } = await import('@/store/toastStore')
+            toast.error('Gagal menyimpan item')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-5 relative animate-in zoom-in-95 duration-200">
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                    <X className="w-5 h-5" />
+                </button>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {editItem ? 'Edit Item' : 'Tambah Item Baru'}
+                </h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Nama Bahan</label>
+                            <input
+                                required
+                                className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none"
+                                value={form.name}
+                                onChange={e => setForm({ ...form, name: e.target.value })}
+                                placeholder="e.g. Susu Segar"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">SKU</label>
+                            <input
+                                className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none"
+                                value={form.sku}
+                                onChange={e => setForm({ ...form, sku: e.target.value })}
+                                placeholder="e.g. DAIRY-001"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Kategori</label>
+                            <select
+                                className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+                                value={form.category}
+                                onChange={e => setForm({ ...form, category: e.target.value })}
+                            >
+                                {CATEGORIES.filter(c => c !== 'All Ingredients').map(c => (
+                                    <option key={c} value={c}>{c}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Unit</label>
+                            <select
+                                className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+                                value={form.unit}
+                                onChange={e => setForm({ ...form, unit: e.target.value })}
+                            >
+                                {['kg', 'g', 'liter', 'ml', 'pcs', 'pack', 'box', 'bottle'].map(u => (
+                                    <option key={u} value={u}>{u}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Stok Saat Ini</label>
+                            <input
+                                type="number" min={0} required
+                                className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none"
+                                value={form.currentStock}
+                                onChange={e => setForm({ ...form, currentStock: Number(e.target.value) })}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Min. Stok</label>
+                            <input
+                                type="number" min={0}
+                                className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none"
+                                value={form.minStock}
+                                onChange={e => setForm({ ...form, minStock: Number(e.target.value) })}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Max. Stok</label>
+                            <input
+                                type="number" min={1}
+                                className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none"
+                                value={form.maxStock}
+                                onChange={e => setForm({ ...form, maxStock: Number(e.target.value) })}
+                            />
+                        </div>
+                        <div className="col-span-2">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">URL Gambar (opsional)</label>
+                            <input
+                                className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none"
+                                value={form.image}
+                                onChange={e => setForm({ ...form, image: e.target.value })}
+                                placeholder="https://..."
+                            />
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-2">
+                        <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">
+                            Batal
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={saving}
+                            className="px-6 py-2 rounded-lg bg-primary text-white text-sm font-bold hover:bg-orange-600 transition-colors shadow-lg shadow-primary/20 disabled:opacity-50"
+                        >
+                            {saving ? 'Menyimpan...' : editItem ? 'Simpan Perubahan' : 'Tambah Item'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    )
+}
+
+// ─── Dropdown Menu ─────────────────────────────────────────────
+function DropdownMenu({ item, onEdit, onDelete }: { item: StockItem; onEdit: () => void; onDelete: () => void }) {
+    const [open, setOpen] = useState(false)
+
+    return (
+        <div className="relative">
+            <button
+                onClick={() => setOpen(!open)}
+                className="text-gray-400 hover:text-primary transition-colors shrink-0"
+            >
+                <MoreVertical className="w-5 h-5" />
+            </button>
+            {open && (
+                <>
+                    <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+                    <div className="absolute right-0 top-8 z-40 w-40 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 text-sm">
+                        <button
+                            onClick={() => { setOpen(false); onEdit() }}
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-200"
+                        >
+                            <Pencil className="w-4 h-4" /> Edit Item
+                        </button>
+                        <button
+                            onClick={() => {
+                                setOpen(false)
+                                if (confirm(`Hapus "${item.name}"?`)) onDelete()
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600"
+                        >
+                            <Trash2 className="w-4 h-4" /> Hapus
+                        </button>
+                    </div>
+                </>
+            )}
+        </div>
+    )
+}
+
+// ─── Main Page ─────────────────────────────────────────────────────────────
 export default function Inventory() {
-    const { stock, updateStock, fetchStock, subscribeToStock, unsubscribeFromStock } = useInventoryStore()
+    const navigate = useNavigate()
+    const { stock, updateStock, fetchStock, deleteItem, subscribeToStock, unsubscribeFromStock } = useInventoryStore()
     const [searchQuery, setSearchQuery] = useState('')
     const [activeCategory, setActiveCategory] = useState('All Ingredients')
+    const [dialogOpen, setDialogOpen] = useState(false)
+    const [editItem, setEditItem] = useState<StockItem | null>(null)
 
     useEffect(() => {
         fetchStock()
@@ -37,6 +260,9 @@ export default function Inventory() {
     const lowCount = stock.filter(i => getStockStatus(i) === 'low').length
     const criticalCount = stock.filter(i => getStockStatus(i) === 'critical').length
     const lowStockItems = stock.filter(i => getStockStatus(i) === 'critical' || getStockStatus(i) === 'low')
+
+    const openAdd = () => { setEditItem(null); setDialogOpen(true) }
+    const openEdit = (item: StockItem) => { setEditItem(item); setDialogOpen(true) }
 
     return (
         <div className="h-[calc(100vh-4rem)] md:h-screen flex flex-col overflow-hidden bg-[#f8f7f5] dark:bg-[#23170f]">
@@ -64,14 +290,17 @@ export default function Inventory() {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-orange-600 transition-colors font-medium shadow-lg shadow-primary/20">
+                    <button
+                        onClick={openAdd}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-orange-600 transition-colors font-medium shadow-lg shadow-primary/20"
+                    >
                         <Plus className="w-5 h-5" />
                         <span className="hidden md:inline">Add Item</span>
                     </button>
                 </div>
             </header>
 
-            {/* Main Content Area — No Sidebar */}
+            {/* Main Content Area */}
             <main className="flex-1 overflow-y-auto p-6 lg:p-8 relative">
                 {/* Quick Stats Row */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -126,20 +355,29 @@ export default function Inventory() {
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Inventory Items</h2>
                     <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                        Sort by: Priority
+                        {filteredStock.length} item(s)
                     </div>
                 </div>
 
                 {/* Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 pb-20 md:pb-4">
                     {filteredStock.map(item => (
-                        <InventoryCard key={item.id} item={item} onUpdate={updateStock} />
+                        <InventoryCard
+                            key={item.id}
+                            item={item}
+                            onUpdate={updateStock}
+                            onEdit={() => openEdit(item)}
+                            onDelete={() => deleteItem(item.id)}
+                        />
                     ))}
                     {filteredStock.length === 0 && (
                         <div className="col-span-full h-40 flex flex-col items-center justify-center text-gray-400">
                             <Package className="w-10 h-10 mb-2" />
                             <p className="text-lg font-medium">No items found</p>
                             <p className="text-sm">Try a different search or category.</p>
+                            <button onClick={openAdd} className="mt-3 text-primary font-medium text-sm hover:underline">
+                                + Tambah Item Baru
+                            </button>
                         </div>
                     )}
                 </div>
@@ -147,7 +385,7 @@ export default function Inventory() {
 
             {/* Low Stock Alert — Fixed Bottom Right */}
             {lowStockItems.length > 0 && (
-                <div className="fixed bottom-6 right-6 z-50 w-72 animate-in slide-in-from-bottom-4 duration-300">
+                <div className="fixed bottom-6 right-6 z-40 w-72 animate-in slide-in-from-bottom-4 duration-300">
                     <div className="bg-white dark:bg-[#2d2018] rounded-xl p-4 shadow-xl border border-red-200 dark:border-red-900/40">
                         <div className="flex items-center gap-2 text-red-600 dark:text-red-400 mb-3">
                             <AlertTriangle className="w-4 h-4" />
@@ -165,17 +403,38 @@ export default function Inventory() {
                                 </li>
                             ))}
                         </ul>
-                        <button className="w-full mt-3 text-xs bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 py-2 rounded-lg font-medium hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors border border-red-100 dark:border-red-900/30">
-                            Review Order
+                        <button
+                            onClick={() => navigate('/inventory')}
+                            className="w-full mt-3 text-xs bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 py-2 rounded-lg font-medium hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors border border-red-100 dark:border-red-900/30"
+                        >
+                            Review All Items
                         </button>
                     </div>
                 </div>
             )}
+
+            {/* CRUD Dialog */}
+            <InventoryDialog
+                open={dialogOpen}
+                onClose={() => setDialogOpen(false)}
+                editItem={editItem}
+            />
         </div>
     )
 }
 
-function InventoryCard({ item, onUpdate }: { item: StockItem; onUpdate: (id: string, qty: number) => void }) {
+// ─── Inventory Card Component ──────────────────────────────────────────────
+function InventoryCard({
+    item,
+    onUpdate,
+    onEdit,
+    onDelete
+}: {
+    item: StockItem
+    onUpdate: (id: string, qty: number) => void
+    onEdit: () => void
+    onDelete: () => void
+}) {
     const pct = getStockPercent(item)
     const status = getStockStatus(item)
     const isCritical = status === 'critical'
@@ -213,9 +472,7 @@ function InventoryCard({ item, onUpdate }: { item: StockItem; onUpdate: (id: str
                 {isCritical ? (
                     <AlertTriangle className="w-5 h-5 text-red-500 animate-bounce shrink-0" />
                 ) : (
-                    <button className="text-gray-400 hover:text-primary transition-colors shrink-0">
-                        <MoreVertical className="w-5 h-5" />
-                    </button>
+                    <DropdownMenu item={item} onEdit={onEdit} onDelete={onDelete} />
                 )}
             </div>
 
@@ -226,11 +483,9 @@ function InventoryCard({ item, onUpdate }: { item: StockItem; onUpdate: (id: str
                     <span className={cn("font-semibold", statusColor)}>{statusLabel}</span>
                 </div>
                 <div className="h-4 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden relative">
-                    {/* Tick Marks */}
                     <div className="absolute left-1/4 top-0 bottom-0 w-px bg-white/30 z-10" />
                     <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/30 z-10" />
                     <div className="absolute left-3/4 top-0 bottom-0 w-px bg-white/30 z-10" />
-                    {/* Critical striped background */}
                     {isCritical && (
                         <div
                             className="absolute inset-0 opacity-10"

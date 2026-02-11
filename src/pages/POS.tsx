@@ -1,21 +1,36 @@
 import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { MenuCard } from '@/components/MenuCard'
-import { CartSidebar } from '@/components/CartSidebar'
+import { CartSidebar, type OrderType } from '@/components/CartSidebar'
 import { useCartStore, type MenuItem } from '@/store/cartStore'
 import { ProductDetailDialog } from '@/components/ProductDetailDialog'
 import { CheckoutDialog } from '@/components/CheckoutDialog'
 import { MobileCartDrawer, CartFAB } from '@/components/MobileCartDrawer'
-import { Search } from 'lucide-react'
+import { OpenShiftDialog, CloseShiftDialog } from '@/components/ShiftDialog'
+import { useShiftStore } from '@/store/shiftStore'
+import { Search, Clock, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from '@/store/toastStore'
 import { supabase } from '@/lib/supabase'
+
+interface OrderMeta {
+    type: OrderType
+    table?: string
+    customerName?: string
+    customerPhone?: string
+}
 
 export default function POS() {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null)
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
     const [isMobileCartOpen, setIsMobileCartOpen] = useState(false)
+    const [orderMeta, setOrderMeta] = useState<OrderMeta>({ type: 'dine-in' })
+
+    // Shift
+    const { activeShift, fetchActiveShift } = useShiftStore()
+    const [showOpenShift, setShowOpenShift] = useState(false)
+    const [showCloseShift, setShowCloseShift] = useState(false)
 
     // Data State
     const [categories, setCategories] = useState<string[]>(['All'])
@@ -27,6 +42,7 @@ export default function POS() {
 
     // Fetch Data from Supabase
     useEffect(() => {
+        fetchActiveShift()
         const fetchData = async () => {
             try {
                 // Fetch Categories
@@ -74,10 +90,14 @@ export default function POS() {
         addItem(item, qty, notes)
     }
 
+    const handleCheckout = (meta: OrderMeta) => {
+        setOrderMeta(meta)
+        setIsCheckoutOpen(true)
+    }
+
     const handleCheckoutSuccess = () => {
         setIsCheckoutOpen(false)
         setIsMobileCartOpen(false)
-        // toast handles in component
     }
 
     const filteredItems = products.filter(item => {
@@ -99,6 +119,36 @@ export default function POS() {
         <div className="h-[calc(100vh-4rem)] md:h-screen flex overflow-hidden">
             {/* Menu Area */}
             <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+                {/* Shift Banner */}
+                {!activeShift ? (
+                    <div className="bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-800 px-4 py-2 flex items-center justify-between shrink-0">
+                        <p className="text-sm text-amber-700 dark:text-amber-300 flex items-center gap-2">
+                            <Clock className="w-4 h-4" />
+                            Belum ada shift aktif. Buka shift untuk mulai.
+                        </p>
+                        <button
+                            onClick={() => setShowOpenShift(true)}
+                            className="text-sm font-bold text-amber-700 dark:text-amber-300 hover:underline"
+                        >
+                            Buka Shift →
+                        </button>
+                    </div>
+                ) : (
+                    <div className="bg-green-50 dark:bg-green-900/20 border-b border-green-200 dark:border-green-800 px-4 py-2 flex items-center justify-between shrink-0">
+                        <p className="text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
+                            <Clock className="w-4 h-4" />
+                            Shift aktif sejak {new Date(activeShift.opened_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        <button
+                            onClick={() => setShowCloseShift(true)}
+                            className="text-sm font-medium text-green-700 dark:text-green-300 hover:underline flex items-center gap-1"
+                        >
+                            <LogOut className="w-3.5 h-3.5" />
+                            Tutup Shift
+                        </button>
+                    </div>
+                )}
+
                 {/* Header */}
                 <header className="h-20 px-4 md:px-8 flex items-center justify-between shrink-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md sticky top-0 z-10 border-b border-sidebar-border/50">
                     <div>
@@ -171,7 +221,7 @@ export default function POS() {
 
             {/* Cart Sidebar */}
             <div className="hidden md:block w-96 h-full flex-shrink-0 bg-card border-l">
-                <CartSidebar onCheckout={() => setIsCheckoutOpen(true)} />
+                <CartSidebar onCheckout={handleCheckout} />
             </div>
 
             <ProductDetailDialog
@@ -198,7 +248,12 @@ export default function POS() {
                 isOpen={isCheckoutOpen}
                 onClose={() => setIsCheckoutOpen(false)}
                 onSuccess={handleCheckoutSuccess}
+                orderMeta={orderMeta}
             />
+
+            {/* Shift Dialogs */}
+            <OpenShiftDialog open={showOpenShift} onClose={() => { setShowOpenShift(false); fetchActiveShift() }} />
+            <CloseShiftDialog open={showCloseShift} onClose={() => { setShowCloseShift(false); fetchActiveShift() }} />
         </div>
     )
 }

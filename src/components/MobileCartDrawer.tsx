@@ -45,7 +45,7 @@ export function MobileCartDrawer({ isOpen, onClose, onCheckout }: MobileCartDraw
                         </button>
                         {/* Cart content */}
                         <div className="flex-1 overflow-y-auto">
-                            <CartSidebar onCheckout={onCheckout} />
+                            <CartSidebar onCheckout={() => onCheckout()} />
                         </div>
                     </motion.div>
                 </>

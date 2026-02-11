@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 export interface MenuItem {
     id: string
@@ -23,31 +24,36 @@ interface CartState {
     total: () => number
 }
 
-export const useCartStore = create<CartState>((set, get) => ({
-    items: [],
-    addItem: (item, quantity = 1, notes = '') => set((state) => {
-        // Check if item with same ID AND same notes exists
-        const existingItem = state.items.find((i) => i.id === item.id && i.notes === notes)
+export const useCartStore = create<CartState>()(
+    persist(
+        (set, get) => ({
+            items: [],
+            addItem: (item, quantity = 1, notes = '') => set((state) => {
+                // Check if item with same ID AND same notes exists
+                const existingItem = state.items.find((i) => i.id === item.id && i.notes === notes)
 
-        if (existingItem) {
-            return {
+                if (existingItem) {
+                    return {
+                        items: state.items.map((i) =>
+                            i.id === item.id && i.notes === notes ? { ...i, quantity: i.quantity + quantity } : i
+                        ),
+                    }
+                }
+                return { items: [...state.items, { ...item, quantity, notes }] }
+            }),
+            removeItem: (itemId) => set((state) => ({
+                items: state.items.filter((i) => i.id !== itemId),
+            })),
+            updateQuantity: (itemId, quantity) => set((state) => ({
                 items: state.items.map((i) =>
-                    i.id === item.id && i.notes === notes ? { ...i, quantity: i.quantity + quantity } : i
-                ),
-            }
-        }
-        return { items: [...state.items, { ...item, quantity, notes }] }
-    }),
-    removeItem: (itemId) => set((state) => ({
-        items: state.items.filter((i) => i.id !== itemId),
-    })),
-    updateQuantity: (itemId, quantity) => set((state) => ({
-        items: state.items.map((i) =>
-            i.id === itemId ? { ...i, quantity: Math.max(0, quantity) } : i
-        ).filter((i) => i.quantity > 0),
-    })),
-    clearCart: () => set({ items: [] }),
-    total: () => {
-        return get().items.reduce((acc, item) => acc + item.price * item.quantity, 0)
-    },
-}))
+                    i.id === itemId ? { ...i, quantity: Math.max(0, quantity) } : i
+                ).filter((i) => i.quantity > 0),
+            })),
+            clearCart: () => set({ items: [] }),
+            total: () => {
+                return get().items.reduce((acc, item) => acc + item.price * item.quantity, 0)
+            },
+        }),
+        { name: 'natafood-cart' }
+    )
+)

@@ -4,7 +4,7 @@ import { toast as customToast } from './toastStore'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 export type OrderStatus = 'waiting' | 'cooking' | 'ready' | 'completed' | 'refunded' | 'cancelled'
-export type OrderType = 'dine-in' | 'take-away' | 'delivery'
+export type OrderType = 'dine-in' | 'take-away' | 'takeaway' | 'delivery'
 
 export interface OrderItem {
     id?: string
@@ -20,14 +20,16 @@ export interface OrderPayment {
     icon: string
     transactionId: string
     status: 'Approved' | 'Refunded' | 'Pending'
+    cashReceived?: number
+    change?: number
 }
 
 export interface OrderCustomer {
     name: string
     initials: string
     phone: string
-    email: string
-    memberSince: string
+    email?: string
+    memberSince?: string
 }
 
 export interface Order {
@@ -222,6 +224,18 @@ export const useOrderStore = create<OrderState>((set, get) => ({
 
     addOrder: async (orderData) => {
         try {
+            // Generate daily order number: NF-YYMMDD-###
+            const now = new Date()
+            const dateStr = now.toISOString().slice(2, 10).replace(/-/g, '')
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+
+            const { count } = await supabase
+                .from('orders')
+                .select('*', { count: 'exact', head: true })
+                .gte('created_at', todayStart)
+
+            const orderNum = `NF-${dateStr}-${String((count || 0) + 1).padStart(3, '0')}`
+
             const { data: order, error: orderError } = await supabase
                 .from('orders')
                 .insert({
@@ -234,7 +248,8 @@ export const useOrderStore = create<OrderState>((set, get) => ({
                     discount: orderData.discount,
                     total_amount: orderData.total,
                     payment_method: orderData.payment?.method,
-                    kitchen_notes: orderData.kitchenNotes
+                    kitchen_notes: orderData.kitchenNotes,
+                    order_number: orderNum
                 })
                 .select()
                 .single()
@@ -279,8 +294,6 @@ export const useOrderStore = create<OrderState>((set, get) => ({
                 .from('orders')
                 .update({ status })
                 .eq('id', id)
-
-            if (error) throw error
 
             if (error) throw error
 

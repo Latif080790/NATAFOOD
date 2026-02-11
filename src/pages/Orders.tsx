@@ -6,19 +6,37 @@ import { useReactToPrint } from 'react-to-print'
 import { Receipt } from '@/components/Receipt'
 import {
     Clock, CreditCard, Mail, Printer, FileText,
-    ChevronRight, Search, Phone, ArrowLeft
+    ChevronRight, Search, Phone, ArrowLeft, RotateCcw,
+    Calendar, X, AlertTriangle
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/store/toastStore'
+import { supabase } from '@/lib/supabase'
 
 type FilterTab = 'all' | 'completed' | 'refunded'
+type DateRange = 'today' | '7days' | '30days' | 'all'
+
+function getDateRangeStart(range: DateRange): string | null {
+    const now = new Date()
+    switch (range) {
+        case 'today':
+            return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+        case '7days':
+            return new Date(now.getTime() - 7 * 86400000).toISOString()
+        case '30days':
+            return new Date(now.getTime() - 30 * 86400000).toISOString()
+        default:
+            return null
+    }
+}
 
 export default function Orders() {
     const { orders, selectedOrderId, selectOrder, fetchOrders, subscribeToOrders, unsubscribeFromOrders } = useOrderStore()
     const [filter, setFilter] = useState<FilterTab>('all')
     const [searchQuery, setSearchQuery] = useState('')
     const [mobileDetailId, setMobileDetailId] = useState<string | null>(null)
+    const [dateRange, setDateRange] = useState<DateRange>('today')
 
     useEffect(() => {
         fetchOrders()
@@ -35,16 +53,28 @@ export default function Orders() {
             o.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
             o.items.some(i => i.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
             o.customer?.name.toLowerCase().includes(searchQuery.toLowerCase())
-        return matchesFilter && matchesSearch
+
+        // Date range filter
+        const rangeStart = getDateRangeStart(dateRange)
+        const matchesDate = !rangeStart || new Date(o.createdAt) >= new Date(rangeStart)
+
+        return matchesFilter && matchesSearch && matchesDate
     })
 
     const selectedOrder = orders.find(o => o.id === selectedOrderId)
     const mobileDetailOrder = orders.find(o => o.id === mobileDetailId)
 
     const TABS: { key: FilterTab; label: string; count: number }[] = [
-        { key: 'all', label: 'Semua', count: historyOrders.length },
-        { key: 'completed', label: 'Selesai', count: historyOrders.filter(o => o.status === 'completed').length },
-        { key: 'refunded', label: 'Refunded', count: historyOrders.filter(o => o.status === 'refunded').length },
+        { key: 'all', label: 'Semua', count: filteredOrders.length },
+        { key: 'completed', label: 'Selesai', count: filteredOrders.filter(o => o.status === 'completed').length },
+        { key: 'refunded', label: 'Refund', count: filteredOrders.filter(o => o.status === 'refunded').length },
+    ]
+
+    const DATE_RANGES: { key: DateRange; label: string }[] = [
+        { key: 'today', label: 'Hari Ini' },
+        { key: '7days', label: '7 Hari' },
+        { key: '30days', label: '30 Hari' },
+        { key: 'all', label: 'Semua' },
     ]
 
     const handleMobileSelect = (id: string) => {
@@ -81,7 +111,7 @@ export default function Orders() {
                     <div className="flex items-center justify-between">
                         <h1 className="text-lg md:text-xl font-bold text-foreground">Riwayat Pesanan</h1>
                         <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md font-medium">
-                            {historyOrders.length} orders
+                            {filteredOrders.length} orders
                         </span>
                     </div>
                     {/* Search */}
@@ -93,6 +123,24 @@ export default function Orders() {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
+                    </div>
+                    {/* Date Range Filter */}
+                    <div className="flex gap-1">
+                        {DATE_RANGES.map(dr => (
+                            <button
+                                key={dr.key}
+                                onClick={() => setDateRange(dr.key)}
+                                className={cn(
+                                    "flex-1 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1",
+                                    dateRange === dr.key
+                                        ? "bg-primary/10 text-primary border border-primary/30"
+                                        : "text-muted-foreground hover:bg-muted border border-transparent"
+                                )}
+                            >
+                                {dr.key === 'today' && <Calendar className="w-3 h-3" />}
+                                {dr.label}
+                            </button>
+                        ))}
                     </div>
                     {/* Filter Tabs */}
                     <div className="flex gap-1">
@@ -169,12 +217,12 @@ function OrderListItem({ order, isSelected, onClick }: {
         >
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-bold text-sm">{order.id}</span>
+                    <span className="font-bold text-sm">{order.id.slice(0, 8)}</span>
                     <span className={cn(
                         "px-1.5 py-0.5 text-[10px] font-bold rounded uppercase",
                         order.status === 'completed' ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
                     )}>
-                        {order.status}
+                        {order.status === 'completed' ? 'Selesai' : 'Refund'}
                     </span>
                     <span className={cn(
                         "px-1.5 py-0.5 text-[10px] font-medium rounded capitalize",
@@ -205,12 +253,14 @@ function OrderDetail({ order }: { order: Order }) {
         contentRef: receiptRef,
         documentTitle: `Receipt-${order.id}`,
     })
+    const [showRefundDialog, setShowRefundDialog] = useState(false)
+
     return (
         <div className="max-w-2xl mx-auto w-full p-4 md:p-6 space-y-5 md:space-y-6 pb-24 md:pb-6">
             {/* Header */}
             <div className="flex items-start justify-between">
                 <div>
-                    <h2 className="text-xl md:text-2xl font-bold">{order.id}</h2>
+                    <h2 className="text-xl md:text-2xl font-bold">{order.id.slice(0, 8)}</h2>
                     <p className="text-sm text-muted-foreground flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />
                         {formatDate(order.createdAt)} • {formatTime12h(order.createdAt)}
@@ -221,10 +271,10 @@ function OrderDetail({ order }: { order: Order }) {
                         "px-2 py-1 text-xs font-bold rounded-lg uppercase",
                         order.status === 'completed' ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
                     )}>
-                        {order.status}
+                        {order.status === 'completed' ? 'Selesai' : 'Refund'}
                     </span>
                     <span className="px-2 py-1 text-xs font-medium rounded-lg bg-muted capitalize">
-                        {order.type} {order.table && `• ${order.table}`}
+                        {order.type} {order.table && `• Meja ${order.table}`}
                     </span>
                 </div>
             </div>
@@ -294,18 +344,22 @@ function OrderDetail({ order }: { order: Order }) {
                             </div>
                             <div>
                                 <p className="font-bold">{order.customer.name}</p>
-                                <p className="text-xs text-muted-foreground">Member since {order.customer.memberSince}</p>
+                                {order.customer.memberSince && <p className="text-xs text-muted-foreground">Member since {order.customer.memberSince}</p>}
                             </div>
                         </div>
                         <div className="space-y-1.5 text-sm">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <Phone className="w-3.5 h-3.5" />
-                                <span>{order.customer.phone}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <Mail className="w-3.5 h-3.5" />
-                                <span className="truncate">{order.customer.email}</span>
-                            </div>
+                            {order.customer.phone && (
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                    <Phone className="w-3.5 h-3.5" />
+                                    <span>{order.customer.phone}</span>
+                                </div>
+                            )}
+                            {order.customer.email && (
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                    <Mail className="w-3.5 h-3.5" />
+                                    <span className="truncate">{order.customer.email}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -318,7 +372,11 @@ function OrderDetail({ order }: { order: Order }) {
                             </div>
                             <div>
                                 <p className="font-bold">{order.payment.method}</p>
-                                <p className="text-xs text-muted-foreground truncate">{order.payment.transactionId}</p>
+                                {order.payment.cashReceived !== undefined && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Diterima: {formatRupiah(order.payment.cashReceived)} • Kembalian: {formatRupiah(order.payment.change || 0)}
+                                    </p>
+                                )}
                             </div>
                         </div>
                         <span className={cn(
@@ -345,7 +403,7 @@ function OrderDetail({ order }: { order: Order }) {
             <div className="flex gap-3">
                 <Button
                     variant="outline" className="flex-1"
-                    onClick={() => toast.info('Email receipt sent!')}
+                    onClick={() => toast.info('Fitur email belum tersedia. Coming soon!')}
                 >
                     <Mail className="w-4 h-4 mr-2" />
                     Email
@@ -359,8 +417,106 @@ function OrderDetail({ order }: { order: Order }) {
                     Cetak Ulang
                 </Button>
 
+                {order.status === 'completed' && (
+                    <Button
+                        variant="outline"
+                        className="flex-1 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                        onClick={() => setShowRefundDialog(true)}
+                    >
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        Refund
+                    </Button>
+                )}
+
                 <div style={{ display: 'none' }}>
                     <Receipt ref={receiptRef} order={order} />
+                </div>
+            </div>
+
+            {/* Refund Dialog */}
+            {showRefundDialog && (
+                <RefundDialog
+                    order={order}
+                    onClose={() => setShowRefundDialog(false)}
+                />
+            )}
+        </div>
+    )
+}
+
+// ─── Refund Dialog ──────────────────────────────────────────────────────────
+function RefundDialog({ order, onClose }: { order: Order; onClose: () => void }) {
+    const [reason, setReason] = useState('')
+    const [processing, setProcessing] = useState(false)
+    const { fetchOrders } = useOrderStore()
+
+    const handleRefund = async () => {
+        if (!reason.trim()) {
+            toast.error('Masukkan alasan refund')
+            return
+        }
+        setProcessing(true)
+
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .update({
+                    status: 'refunded',
+                    kitchen_notes: `${order.kitchenNotes ? order.kitchenNotes + ' | ' : ''}REFUND: ${reason}`
+                })
+                .eq('id', order.id)
+
+            if (error) throw error
+
+            toast.success('Pesanan berhasil di-refund')
+            await fetchOrders()
+            onClose()
+        } catch (err) {
+            console.error('Refund error:', err)
+            toast.error('Gagal melakukan refund')
+        } finally {
+            setProcessing(false)
+        }
+    }
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5 relative animate-in zoom-in-95 duration-200">
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                    <X className="w-5 h-5" />
+                </button>
+                <div className="text-center">
+                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <AlertTriangle className="w-8 h-8 text-red-500" />
+                    </div>
+                    <h2 className="text-xl font-bold">Refund Pesanan</h2>
+                    <p className="text-sm text-gray-500 mt-1">
+                        Total: <span className="font-bold">{formatRupiah(order.total)}</span>
+                    </p>
+                </div>
+
+                <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Alasan Refund</label>
+                    <textarea
+                        className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-zinc-800 px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 outline-none min-h-[80px]"
+                        value={reason}
+                        onChange={e => setReason(e.target.value)}
+                        placeholder="e.g. Pelanggan komplain makanan dingin..."
+                        autoFocus
+                    />
+                </div>
+
+                <div className="flex gap-3">
+                    <Button variant="outline" className="flex-1" onClick={onClose} disabled={processing}>
+                        Batal
+                    </Button>
+                    <Button
+                        className="flex-1 bg-red-500 hover:bg-red-600 text-white"
+                        onClick={handleRefund}
+                        disabled={processing || !reason.trim()}
+                    >
+                        {processing ? 'Memproses...' : 'Konfirmasi Refund'}
+                    </Button>
                 </div>
             </div>
         </div>

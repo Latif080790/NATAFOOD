@@ -3,8 +3,8 @@ import { Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatRupiah } from '@/lib/format'
 
-export function MenuCard({ item, onAdd, quantity = 0 }: { item: MenuItem, onAdd: (item: MenuItem) => void, quantity?: number }) {
-    const isAvailable = item.status === 'available'
+export function MenuCard({ item, onAdd, quantity = 0, outOfStock = false }: { item: MenuItem, onAdd: (item: MenuItem) => void, quantity?: number, outOfStock?: boolean }) {
+    const isAvailable = item.status === 'available' && !outOfStock
     const isSelected = quantity > 0
 
     return (
@@ -25,7 +25,7 @@ export function MenuCard({ item, onAdd, quantity = 0 }: { item: MenuItem, onAdd:
             {!isAvailable && (
                 <div className="absolute inset-0 bg-white/40 dark:bg-black/40 z-10 rounded-2xl flex items-center justify-center">
                     <div className="bg-slate-800 text-white px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider">
-                        {item.status === 'sold_out' ? 'Out of Stock' : 'Cooking'}
+                        {item.status === 'sold_out' || outOfStock ? 'Stok Habis' : 'Diproses'}
                     </div>
                 </div>
             )}

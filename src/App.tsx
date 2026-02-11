@@ -9,6 +9,7 @@ import Orders from '@/pages/Orders'
 import Inventory from '@/pages/Inventory'
 import Settings from '@/pages/Settings'
 import Scan from '@/pages/Scan'
+import Finance from '@/pages/Finance'
 import Login from '@/pages/Login'
 import CustomerDisplay from '@/pages/CustomerDisplay' // Added
 import AuthGuard from '@/components/AuthGuard'
@@ -60,6 +61,7 @@ function App() {
             <Route path="/inventory" element={<ErrorBoundary><Inventory /></ErrorBoundary>} />
             <Route path="/settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
             <Route path="/scan" element={<ErrorBoundary><Scan /></ErrorBoundary>} />
+            <Route path="/finance" element={<ErrorBoundary><Finance /></ErrorBoundary>} />
           </Route>
         </Routes>
       </Router>

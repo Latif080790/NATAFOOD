@@ -19,6 +19,8 @@ interface InventoryState {
     isLoading: boolean
     fetchStock: () => Promise<void>
     updateStock: (id: string, newQuantity: number) => Promise<void>
+    addItem: (item: Omit<StockItem, 'id'>) => Promise<void>
+    deleteItem: (id: string) => Promise<void>
     subscribeToStock: () => void
     unsubscribeFromStock: () => void
 }
@@ -60,7 +62,6 @@ export const useInventoryStore = create<InventoryState>((set) => ({
     },
 
     updateStock: async (id, newQuantity) => {
-        // Optimistic update
         set((state) => ({
             stock: state.stock.map((item) =>
                 item.id === id ? { ...item, currentStock: Math.max(0, newQuantity) } : item
@@ -81,7 +82,48 @@ export const useInventoryStore = create<InventoryState>((set) => ({
         } catch (error) {
             console.error('Error updating stock:', error)
             toast.error('Gagal update stok database')
-            // Revert? (Not implemented)
+        }
+    },
+
+    addItem: async (item) => {
+        try {
+            const { error } = await supabase
+                .from('inventory')
+                .insert([{
+                    name: item.name,
+                    sku: item.sku,
+                    category: item.category,
+                    unit: item.unit,
+                    current_stock: item.currentStock,
+                    min_stock: item.minStock,
+                    max_stock: item.maxStock,
+                    image_url: item.image,
+                }])
+            if (error) throw error
+            toast.success('Item berhasil ditambahkan')
+            // Re-fetch to get the new item with proper ID
+            useInventoryStore.getState().fetchStock()
+        } catch (error) {
+            console.error('Error adding item:', error)
+            toast.error('Gagal menambahkan item')
+        }
+    },
+
+    deleteItem: async (id) => {
+        set(state => ({
+            stock: state.stock.filter(i => i.id !== id)
+        }))
+        try {
+            const { error } = await supabase
+                .from('inventory')
+                .delete()
+                .eq('id', id)
+            if (error) throw error
+            toast.success('Item berhasil dihapus')
+        } catch (error) {
+            console.error('Error deleting item:', error)
+            toast.error('Gagal menghapus item')
+            useInventoryStore.getState().fetchStock()
         }
     },
 
@@ -99,7 +141,7 @@ export const useInventoryStore = create<InventoryState>((set) => ({
                                     ? {
                                         ...item,
                                         currentStock: payload.new.current_stock,
-                                        name: payload.new.name, // In case name changes
+                                        name: payload.new.name,
                                         minStock: payload.new.min_stock
                                     }
                                     : item
@@ -119,6 +161,10 @@ export const useInventoryStore = create<InventoryState>((set) => ({
                                 maxStock: Number(newItem.max_stock) || 100,
                                 image: newItem.image_url || 'https://images.unsplash.com/photo-1556740738-b6a63e27c4df'
                             }]
+                        }))
+                    } else if (payload.eventType === 'DELETE') {
+                        set(state => ({
+                            stock: state.stock.filter(i => i.id !== payload.old.id)
                         }))
                     }
                 }

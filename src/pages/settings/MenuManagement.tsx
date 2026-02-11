@@ -16,6 +16,7 @@ interface Product {
 
 export default function MenuManagement() {
     const [products, setProducts] = useState<Product[]>([])
+    const [categories, setCategories] = useState<string[]>(['Food', 'Drink', 'Snack', 'Dessert'])
     const [isLoading, setIsLoading] = useState(true)
     const [search, setSearch] = useState('')
     const [isModalOpen, setIsModalOpen] = useState(false)
@@ -32,7 +33,22 @@ export default function MenuManagement() {
 
     useEffect(() => {
         fetchProducts()
+        fetchCategories()
     }, [])
+
+    const fetchCategories = async () => {
+        try {
+            const { data } = await supabase
+                .from('categories')
+                .select('name')
+                .order('name')
+            if (data && data.length > 0) {
+                setCategories(data.map((c: any) => c.name))
+            }
+        } catch {
+            // Keep defaults if table doesn't exist
+        }
+    }
 
     const fetchProducts = async () => {
         setIsLoading(true)
@@ -184,10 +200,9 @@ export default function MenuManagement() {
                                         value={formData.category}
                                         onChange={e => setFormData({ ...formData, category: e.target.value })}
                                     >
-                                        <option value="Food">Food</option>
-                                        <option value="Drink">Drink</option>
-                                        <option value="Snack">Snack</option>
-                                        <option value="Dessert">Dessert</option>
+                                        {categories.map(c => (
+                                            <option key={c} value={c}>{c}</option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>

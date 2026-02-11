@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, Outlet } from 'react-router-dom'
-import { LayoutDashboard, ShoppingCart, ChefHat, History, Package, Settings, Menu, ScanLine, LogOut } from 'lucide-react'
+import { LayoutDashboard, ShoppingCart, ChefHat, History, Package, Settings, Menu, ScanLine, LogOut, PieChart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
     { icon: ChefHat, label: 'Kitchen', path: '/kitchen' },
     { icon: History, label: 'Orders', path: '/orders' },
     { icon: Package, label: 'Inventory', path: '/inventory' },
+    { icon: PieChart, label: 'Finance', path: '/finance' },
     { icon: Settings, label: 'Settings', path: '/settings' },
 ]
 
@@ -26,6 +27,7 @@ const MOBILE_RIGHT = [
 ]
 const MOBILE_MORE = [
     { icon: Package, label: 'Stock', path: '/inventory' },
+    { icon: PieChart, label: 'Finance', path: '/finance' },
     { icon: Settings, label: 'Settings', path: '/settings' },
 ]
 
