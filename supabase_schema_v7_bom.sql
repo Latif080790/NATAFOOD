@@ -58,7 +58,7 @@ GROUP BY o.id, o.created_at, o.total_amount;
 -- Aggregates profit data per day for the Finance dashboard.
 CREATE OR REPLACE VIEW public.daily_profit AS
 SELECT
-    DATE(op.created_at) AS profit_date,
+    DATE(op.created_at AT TIME ZONE 'Asia/Jakarta') AS profit_date,
     COUNT(op.order_id) AS total_orders,
     SUM(op.order_revenue) AS total_revenue,
     SUM(op.order_hpp) AS total_hpp,
@@ -69,7 +69,7 @@ SELECT
         ELSE 0
     END AS avg_margin_percent
 FROM public.order_profit op
-GROUP BY DATE(op.created_at)
+GROUP BY DATE(op.created_at AT TIME ZONE 'Asia/Jakarta')
 ORDER BY profit_date DESC;
 
 -- ─── 5. Grant Access ────────────────────────────────────────

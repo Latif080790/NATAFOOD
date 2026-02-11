@@ -18,7 +18,7 @@ import {
     Calculator
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatRupiah } from '@/lib/format'
+import { formatRupiah, formatDateToLocal } from '@/lib/format'
 import { toast } from '@/store/toastStore'
 
 function getGreeting() {
@@ -71,7 +71,7 @@ export default function Dashboard() {
         // Fetch today's profit data from daily_profit view
         const fetchProfitData = async () => {
             try {
-                const today = new Date().toISOString().slice(0, 10)
+                const today = formatDateToLocal(new Date())
                 const { data } = await supabase
                     .from('daily_profit')
                     .select('*')
@@ -318,7 +318,7 @@ export default function Dashboard() {
                                 </p>
                             </div>
                             <button
-                                onClick={() => navigate('/settings?tab=hpp')}
+                                onClick={() => navigate('/hpp')}
                                 className="flex items-center gap-1 text-xs text-primary font-medium hover:underline"
                             >
                                 <Calculator className="w-3.5 h-3.5" /> Detail HPP

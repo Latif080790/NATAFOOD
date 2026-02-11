@@ -11,6 +11,7 @@ import Settings from '@/pages/Settings'
 import Scan from '@/pages/Scan'
 import Finance from '@/pages/Finance'
 import Login from '@/pages/Login'
+import HPP from '@/pages/HPP' // Added
 import CustomerDisplay from '@/pages/CustomerDisplay' // Added
 import AuthGuard from '@/components/AuthGuard'
 import { useCartStore } from '@/store/cartStore' // Added
@@ -62,6 +63,7 @@ function App() {
             <Route path="/settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
             <Route path="/scan" element={<ErrorBoundary><Scan /></ErrorBoundary>} />
             <Route path="/finance" element={<ErrorBoundary><Finance /></ErrorBoundary>} />
+            <Route path="/hpp" element={<ErrorBoundary><HPP /></ErrorBoundary>} />
           </Route>
         </Routes>
       </Router>

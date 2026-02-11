@@ -12,9 +12,8 @@ import MenuManagement from './settings/MenuManagement'
 import RecipeManagement from './settings/RecipeManagement'
 import TableManagement from './settings/TableManagement'
 import UserManagement from './settings/UserManagement'
-import HPPDashboard from './settings/HPPDashboard'
 
-type Tab = 'general' | 'menu' | 'recipe' | 'table' | 'user' | 'hpp'
+type Tab = 'general' | 'menu' | 'recipe' | 'table' | 'user'
 
 import { useSearchParams } from 'react-router-dom'
 
@@ -85,10 +84,10 @@ export default function Settings() {
                         label="User"
                     />
                     <TabButton
-                        active={activeTab === 'hpp'}
-                        onClick={() => handleTabChange('hpp')}
-                        icon={<Percent className="w-4 h-4" />}
-                        label="HPP / BOM"
+                        active={activeTab === 'user'}
+                        onClick={() => handleTabChange('user')}
+                        icon={<Store className="w-4 h-4" />}
+                        label="User"
                     />
                 </div>
             </div>
@@ -246,7 +245,6 @@ export default function Settings() {
                 {activeTab === 'recipe' && <RecipeManagement />}
                 {activeTab === 'table' && <TableManagement />}
                 {activeTab === 'user' && <UserManagement />}
-                {activeTab === 'hpp' && <HPPDashboard />}
             </div>
         </div>
     )

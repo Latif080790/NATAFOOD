@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useOrderStore } from '@/store/orderStore'
 import { cn } from '@/lib/utils'
-import { formatRupiah } from '@/lib/format'
+import { formatRupiah, formatDateToLocal } from '@/lib/format'
 import { toast } from '@/store/toastStore'
 import {
     Banknote, TrendingUp, TrendingDown, Download, Plus, X,
@@ -33,7 +33,7 @@ export default function Finance() {
     const [dateRange, setDateRange] = useState<'today' | 'week' | 'month'>('today')
 
     // Expense form
-    const [form, setForm] = useState({ category: 'bahan_baku', description: '', amount: 0, date: new Date().toISOString().slice(0, 10) })
+    const [form, setForm] = useState({ category: 'bahan_baku', description: '', amount: 0, date: formatDateToLocal(new Date()) })
     const [totalHPP, setTotalHPP] = useState(0)
 
     const fetchExpenses = async () => {
@@ -125,7 +125,7 @@ export default function Finance() {
             if (error) throw error
             toast.success('Pengeluaran berhasil ditambahkan')
             setShowAddExpense(false)
-            setForm({ category: 'bahan_baku', description: '', amount: 0, date: new Date().toISOString().slice(0, 10) })
+            setForm({ category: 'bahan_baku', description: '', amount: 0, date: formatDateToLocal(new Date()) })
             fetchExpenses()
         } catch (err) {
             console.error(err)
