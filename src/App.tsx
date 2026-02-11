@@ -7,6 +7,12 @@ import POS from '@/pages/POS'
 import Kitchen from '@/pages/Kitchen'
 import Orders from '@/pages/Orders'
 import Inventory from '@/pages/Inventory'
+import StockOpname from '@/pages/inventory/StockOpname'
+import StockOpnameForm from '@/pages/inventory/StockOpnameForm'
+import Shift from '@/pages/Shift'
+import Reports from '@/pages/Reports'
+
+
 import Settings from '@/pages/Settings'
 import Scan from '@/pages/Scan'
 import Finance from '@/pages/Finance'
@@ -59,7 +65,12 @@ function App() {
             <Route path="/pos" element={<ErrorBoundary><POS /></ErrorBoundary>} />
             <Route path="/kitchen" element={<ErrorBoundary><Kitchen /></ErrorBoundary>} />
             <Route path="/orders" element={<ErrorBoundary><Orders /></ErrorBoundary>} />
+            <Route path="/inventory/opname" element={<ErrorBoundary><StockOpname /></ErrorBoundary>} />
+            <Route path="/inventory/opname/new" element={<ErrorBoundary><StockOpnameForm /></ErrorBoundary>} />
+            <Route path="/inventory/opname/new" element={<ErrorBoundary><StockOpnameForm /></ErrorBoundary>} />
             <Route path="/inventory" element={<ErrorBoundary><Inventory /></ErrorBoundary>} />
+            <Route path="/shift" element={<ErrorBoundary><Shift /></ErrorBoundary>} />
+            <Route path="/reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
             <Route path="/settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
             <Route path="/scan" element={<ErrorBoundary><Scan /></ErrorBoundary>} />
             <Route path="/finance" element={<ErrorBoundary><Finance /></ErrorBoundary>} />

@@ -1,6 +1,7 @@
+
 import { useState } from 'react'
 import { Link, useLocation, Outlet } from 'react-router-dom'
-import { LayoutDashboard, ShoppingCart, ChefHat, History, Package, Settings, Menu, ScanLine, LogOut, PieChart, Calculator } from 'lucide-react'
+import { LayoutDashboard, ShoppingCart, ChefHat, History, Package, Settings, Menu, ScanLine, LogOut, PieChart, Calculator, Clock, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -13,6 +14,8 @@ const NAV_ITEMS = [
     { icon: History, label: 'Orders', path: '/orders' },
     { icon: Package, label: 'Inventory', path: '/inventory' },
     { icon: Calculator, label: 'BOM / HPP', path: '/hpp' },
+    { icon: Clock, label: 'Shift', path: '/shift' },
+    { icon: BarChart3, label: 'Laporan', path: '/reports' },
     { icon: PieChart, label: 'Finance', path: '/finance' },
     { icon: Settings, label: 'Settings', path: '/settings' },
 ]

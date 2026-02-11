@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useInventoryStore, type StockItem } from '@/store/inventoryStore'
 import { cn } from '@/lib/utils'
-import { Search, Plus, Minus, Package, AlertTriangle, CheckCircle, TrendingDown, MoreVertical, X, Pencil, Trash2, Download, Printer } from 'lucide-react'
+import { Search, Plus, Minus, Package, AlertTriangle, CheckCircle, TrendingDown, MoreVertical, X, Pencil, Trash2, Download, Printer, ClipboardCheck } from 'lucide-react'
 import { toast } from '@/store/toastStore'
 
 const CATEGORIES = ['All Ingredients', 'Dairy', 'Dry Goods', 'Fresh', 'Syrups', 'Packaging']
@@ -343,6 +343,13 @@ export default function Inventory() {
                         title="Print Inventory"
                     >
                         <Printer className="w-5 h-5" />
+                    </button>
+                    <button
+                        onClick={() => navigate('/inventory/opname')}
+                        className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-[#2d2018] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors font-medium shadow-sm mr-2"
+                    >
+                        <ClipboardCheck className="w-5 h-5" />
+                        <span className="hidden md:inline">Stock Opname</span>
                     </button>
                     <button
                         onClick={openAdd}

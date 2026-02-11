@@ -1,122 +1,97 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { supabase } from '@/lib/supabase'
-import { toast } from '@/store/toastStore'
 
-export interface Shift {
+interface Shift {
     id: string
-    user_id: string
+    start_time: string
     start_cash: number
-    end_cash: number | null
-    expected_cash: number | null
     status: 'open' | 'closed'
-    opened_at: string
-    closed_at: string | null
 }
 
 interface ShiftState {
     activeShift: Shift | null
-    isLoading: boolean
-    fetchActiveShift: () => Promise<void>
-    openShift: (startCash: number) => Promise<boolean>
-    closeShift: (endCash: number) => Promise<{ expected: number; actual: number; difference: number } | null>
+    loading: boolean
+    checkActiveShift: () => Promise<void>
+    openShift: (startCash: number) => Promise<void>
+    closeShift: (actualCash: number, notes: string) => Promise<void>
 }
 
 export const useShiftStore = create<ShiftState>()(
     persist(
         (set, get) => ({
             activeShift: null,
-            isLoading: false,
+            loading: true,
 
-            fetchActiveShift: async () => {
-                set({ isLoading: true })
+            checkActiveShift: async () => {
+                set({ loading: true })
                 try {
+                    // Check local storage / persist first? No, always check DB for truth
+                    // Assuming one active shift per staff? Or one per device?
+                    // Usually one per staff.
+                    const { data: { user } } = await supabase.auth.getUser()
+                    if (!user) return
+
                     const { data, error } = await supabase
                         .from('shifts')
                         .select('*')
+                        .eq('staff_id', user.id)
                         .eq('status', 'open')
-                        .order('opened_at', { ascending: false })
-                        .limit(1)
                         .maybeSingle()
 
                     if (error) throw error
-                    set({ activeShift: data || null })
-                } catch (err) {
-                    console.error('Error fetching shift:', err)
-                } finally {
-                    set({ isLoading: false })
-                }
-            },
-
-            openShift: async (startCash: number) => {
-                try {
-                    const { data: { user } } = await supabase.auth.getUser()
-                    if (!user) throw new Error('Not authenticated')
-
-                    const { data, error } = await supabase
-                        .from('shifts')
-                        .insert([{
-                            user_id: user.id,
-                            start_cash: startCash,
-                            status: 'open',
-                        }])
-                        .select()
-                        .single()
-
-                    if (error) throw error
                     set({ activeShift: data })
-                    toast.success(`Shift dibuka! Modal awal: Rp ${startCash.toLocaleString('id-ID')}`)
-                    return true
                 } catch (err) {
-                    console.error('Error opening shift:', err)
-                    toast.error('Gagal membuka shift. Pastikan tabel "shifts" sudah dibuat.')
-                    return false
+                    console.error('Check shift error:', err)
+                } finally {
+                    set({ loading: false })
                 }
             },
 
-            closeShift: async (endCash: number) => {
-                const shift = get().activeShift
-                if (!shift) return null
+            openShift: async (startCash) => {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) throw new Error('Not authenticated')
 
-                try {
-                    // Calculate expected cash: start_cash + revenue during shift
-                    const { data: orders } = await supabase
-                        .from('orders')
-                        .select('total')
-                        .eq('status', 'completed')
-                        .gte('created_at', shift.opened_at)
+                const { data, error } = await supabase
+                    .from('shifts')
+                    .insert({
+                        staff_id: user.id,
+                        start_cash: startCash,
+                        status: 'open',
+                        start_time: new Date().toISOString()
+                    })
+                    .select()
+                    .single()
 
-                    const revenue = orders?.reduce((sum, o) => sum + (o.total || 0), 0) || 0
-                    const expectedCash = shift.start_cash + revenue
-
-                    const { error } = await supabase
-                        .from('shifts')
-                        .update({
-                            end_cash: endCash,
-                            expected_cash: expectedCash,
-                            status: 'closed',
-                            closed_at: new Date().toISOString(),
-                        })
-                        .eq('id', shift.id)
-
-                    if (error) throw error
-
-                    const result = {
-                        expected: expectedCash,
-                        actual: endCash,
-                        difference: endCash - expectedCash,
-                    }
-
-                    set({ activeShift: null })
-                    toast.success('Shift berhasil ditutup!')
-                    return result
-                } catch (err) {
-                    console.error('Error closing shift:', err)
-                    toast.error('Gagal menutup shift.')
-                    return null
-                }
+                if (error) throw error
+                set({ activeShift: data })
             },
+
+            closeShift: async (actualCash, notes) => {
+                const { activeShift } = get()
+                if (!activeShift) throw new Error('No active shift')
+
+                // Calculate system cash (TODO: Server side or Client aggregation)
+                // For now we just update the shift status. 
+                // Creating a summary report needs to aggregate orders within shift timeframe.
+
+                const { error } = await supabase
+                    .from('shifts')
+                    .update({
+                        end_time: new Date().toISOString(),
+                        end_cash_actual: actualCash,
+                        status: 'closed',
+                        notes: notes
+                    })
+                    .eq('id', activeShift.id)
+
+                if (error) throw error
+                set({ activeShift: null })
+            }
         }),
-        { name: 'natafood-shift' }
+        {
+            name: 'shift-storage',
+            partialize: (state) => ({ activeShift: state.activeShift }), // Persist activeShift
+        }
     )
 )

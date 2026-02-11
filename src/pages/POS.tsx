@@ -28,7 +28,7 @@ export default function POS() {
     const [orderMeta, setOrderMeta] = useState<OrderMeta>({ type: 'dine-in' })
 
     // Shift
-    const { activeShift, fetchActiveShift } = useShiftStore()
+    const { activeShift, checkActiveShift } = useShiftStore()
     const [showOpenShift, setShowOpenShift] = useState(false)
     const [showCloseShift, setShowCloseShift] = useState(false)
 
@@ -42,7 +42,7 @@ export default function POS() {
 
     // Fetch Data from Supabase
     useEffect(() => {
-        fetchActiveShift()
+        checkActiveShift()
         const fetchData = async () => {
             try {
                 // Fetch Categories
@@ -137,7 +137,7 @@ export default function POS() {
                     <div className="bg-green-50 dark:bg-green-900/20 border-b border-green-200 dark:border-green-800 px-4 py-2 flex items-center justify-between shrink-0">
                         <p className="text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
                             <Clock className="w-4 h-4" />
-                            Shift aktif sejak {new Date(activeShift.opened_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                            Shift aktif sejak {new Date(activeShift.start_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                         </p>
                         <button
                             onClick={() => setShowCloseShift(true)}
@@ -252,8 +252,8 @@ export default function POS() {
             />
 
             {/* Shift Dialogs */}
-            <OpenShiftDialog open={showOpenShift} onClose={() => { setShowOpenShift(false); fetchActiveShift() }} />
-            <CloseShiftDialog open={showCloseShift} onClose={() => { setShowCloseShift(false); fetchActiveShift() }} />
+            <OpenShiftDialog open={showOpenShift} onClose={() => { setShowOpenShift(false); checkActiveShift() }} />
+            <CloseShiftDialog open={showCloseShift} onClose={() => { setShowCloseShift(false); checkActiveShift() }} />
         </div>
     )
 }
