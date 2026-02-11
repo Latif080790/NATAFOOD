@@ -26,12 +26,22 @@ CREATE TABLE IF NOT EXISTS public.inventory_adjustment_items (
 ALTER TABLE public.inventory_adjustments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_adjustment_items ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Enable read access for all users" ON public.inventory_adjustments;
 CREATE POLICY "Enable read access for all users" ON public.inventory_adjustments FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.inventory_adjustments;
 CREATE POLICY "Enable insert for authenticated users" ON public.inventory_adjustments FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Enable update for authenticated users" ON public.inventory_adjustments;
 CREATE POLICY "Enable update for authenticated users" ON public.inventory_adjustments FOR UPDATE USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Enable read access for all users" ON public.inventory_adjustment_items;
 CREATE POLICY "Enable read access for all users" ON public.inventory_adjustment_items FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.inventory_adjustment_items;
 CREATE POLICY "Enable insert for authenticated users" ON public.inventory_adjustment_items FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Enable delete for authenticated users" ON public.inventory_adjustment_items;
 CREATE POLICY "Enable delete for authenticated users" ON public.inventory_adjustment_items FOR DELETE USING (auth.role() = 'authenticated');
 
 -- ─── 3. Grants ───────────────────────────────────────────────────

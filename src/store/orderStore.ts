@@ -236,6 +236,14 @@ export const useOrderStore = create<OrderState>((set, get) => ({
 
             const orderNum = `NF-${dateStr}-${String((count || 0) + 1).padStart(3, '0')}`
 
+            // Get Active Shift
+            const { activeShift } = (await import('./shiftStore')).useShiftStore.getState()
+
+            // if (!activeShift) {
+            //     customToast.error('Buka shift terlebih dahulu untuk membuat pesanan!')
+            //     return null
+            // } 
+
             const { data: order, error: orderError } = await supabase
                 .from('orders')
                 .insert({
@@ -249,7 +257,8 @@ export const useOrderStore = create<OrderState>((set, get) => ({
                     total_amount: orderData.total,
                     payment_method: orderData.payment?.method,
                     kitchen_notes: orderData.kitchenNotes,
-                    order_number: orderNum
+                    order_number: orderNum,
+                    shift_id: activeShift?.id || null // Link to shift
                 })
                 .select()
                 .single()

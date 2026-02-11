@@ -323,6 +323,15 @@ GRANT ALL ON public.inventory_adjustment_items TO service_role;
 GRANT ALL ON public.tables TO authenticated;
 GRANT ALL ON public.tables TO service_role;
 
+-- ─────────────────────────────────────────────────────────────
+-- SECTION L: Order-Shift Integration (V11)
+-- ─────────────────────────────────────────────────────────────
+
+ALTER TABLE public.orders 
+ADD COLUMN IF NOT EXISTS shift_id UUID REFERENCES public.shifts(id);
+
+CREATE INDEX IF NOT EXISTS idx_orders_shift_id ON public.orders(shift_id);
+
 -- ============================================================
 -- DONE! All errors and warnings should be resolved.
 -- ============================================================
