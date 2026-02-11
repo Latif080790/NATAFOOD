@@ -83,12 +83,7 @@ export default function Settings() {
                         icon={<Store className="w-4 h-4" />}
                         label="User"
                     />
-                    <TabButton
-                        active={activeTab === 'user'}
-                        onClick={() => handleTabChange('user')}
-                        icon={<Store className="w-4 h-4" />}
-                        label="User"
-                    />
+
                 </div>
             </div>
 

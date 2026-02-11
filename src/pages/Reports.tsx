@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { formatRupiah } from '@/lib/format'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -6,7 +7,8 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     LineChart, Line, PieChart, Pie, Cell
 } from 'recharts'
-import { TrendingUp, ShoppingBag, DollarSign, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react'
+import { TrendingUp, ShoppingBag, DollarSign, ArrowUpRight, ArrowDownRight, Loader2, Download } from 'lucide-react'
+import { exportToCSV } from '@/lib/exportCSV'
 import { cn } from '@/lib/utils'
 
 export default function Reports() {
@@ -94,6 +96,20 @@ export default function Reports() {
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Laporan Penjualan</h1>
                     <p className="text-gray-500">Analisis performa bisnis Anda</p>
                 </div>
+                <button
+                    onClick={() => {
+                        exportToCSV(salesData, 'laporan_penjualan', {
+                            date: 'Tanggal',
+                            total_sales: 'Total Penjualan',
+                            total_orders: 'Jumlah Pesanan',
+                            avg_order_value: 'Rata-rata Order'
+                        })
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+                >
+                    <Download className="h-4 w-4" />
+                    Export CSV
+                </button>
                 <div className="flex bg-white dark:bg-zinc-800 rounded-lg p-1 border shadow-sm">
                     {['7', '30', '90'].map((range) => (
                         <button
@@ -263,6 +279,36 @@ export default function Reports() {
                         </div>
                     </CardContent>
                 </Card>
+            </div>
+
+            {/* Operational Reports Links */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Link to="/reports/shift-history" className="group">
+                    <Card className="hover:shadow-lg transition-all hover:border-primary/50 cursor-pointer">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                📋 Riwayat Shift
+                                <span className="text-xs font-normal text-gray-400 group-hover:text-primary transition-colors">→</span>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-gray-500">Lihat seluruh riwayat shift kasir, selisih kas, dan rekonsiliasi.</p>
+                        </CardContent>
+                    </Card>
+                </Link>
+                <Link to="/reports/stock-movement" className="group">
+                    <Card className="hover:shadow-lg transition-all hover:border-primary/50 cursor-pointer">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                📦 Riwayat Stok
+                                <span className="text-xs font-normal text-gray-400 group-hover:text-primary transition-colors">→</span>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-gray-500">Audit trail perubahan stok dari Stock Opname dan penyesuaian.</p>
+                        </CardContent>
+                    </Card>
+                </Link>
             </div>
         </div>
     )

@@ -11,6 +11,8 @@ import StockOpname from '@/pages/inventory/StockOpname'
 import StockOpnameForm from '@/pages/inventory/StockOpnameForm'
 import Shift from '@/pages/Shift'
 import Reports from '@/pages/Reports'
+import ShiftHistory from '@/pages/reports/ShiftHistory'
+import StockMovement from '@/pages/reports/StockMovement'
 
 
 import Settings from '@/pages/Settings'
@@ -71,6 +73,8 @@ function App() {
             <Route path="/inventory" element={<ErrorBoundary><Inventory /></ErrorBoundary>} />
             <Route path="/shift" element={<ErrorBoundary><Shift /></ErrorBoundary>} />
             <Route path="/reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
+            <Route path="/reports/shift-history" element={<ErrorBoundary><ShiftHistory /></ErrorBoundary>} />
+            <Route path="/reports/stock-movement" element={<ErrorBoundary><StockMovement /></ErrorBoundary>} />
             <Route path="/settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
             <Route path="/scan" element={<ErrorBoundary><Scan /></ErrorBoundary>} />
             <Route path="/finance" element={<ErrorBoundary><Finance /></ErrorBoundary>} />

@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS public.shifts CASCADE;
 
 CREATE TABLE public.shifts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    staff_id UUID REFERENCES public.profiles(id),
+    staff_id UUID, -- auth.uid(), no FK to profiles
     start_time TIMESTAMPTZ DEFAULT NOW(),
     end_time TIMESTAMPTZ,
     start_cash DECIMAL DEFAULT 0,
@@ -28,7 +28,7 @@ CREATE TABLE public.cash_logs (
     amount DECIMAL NOT NULL,
     description TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    created_by UUID REFERENCES public.profiles(id)
+    created_by UUID -- auth.uid(), no FK to profiles
 );
 
 -- ─── 2. RLS Policies ─────────────────────────────────────────────
