@@ -6,7 +6,7 @@ import { formatRupiah } from '@/lib/format'
 import { toast } from '@/store/toastStore'
 import {
     Banknote, TrendingUp, TrendingDown, Download, Plus, X,
-    PieChart, ArrowUpRight, ArrowDownRight, Trash2
+    PieChart, ArrowUpRight, ArrowDownRight, Trash2, Calculator
 } from 'lucide-react'
 
 interface Expense {
@@ -34,6 +34,7 @@ export default function Finance() {
 
     // Expense form
     const [form, setForm] = useState({ category: 'bahan_baku', description: '', amount: 0, date: new Date().toISOString().slice(0, 10) })
+    const [totalHPP, setTotalHPP] = useState(0)
 
     const fetchExpenses = async () => {
         setIsLoading(true)
@@ -53,6 +54,27 @@ export default function Finance() {
     }
 
     useEffect(() => { fetchExpenses() }, [])
+
+    // Fetch HPP from daily_profit view
+    useEffect(() => {
+        const fetchHPP = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('daily_profit')
+                    .select('total_hpp, profit_date')
+                if (error) throw error
+                // Filter by date range
+                const start = getDateRange()
+                const filtered = (data || []).filter(d => new Date(d.profit_date) >= start)
+                const hpp = filtered.reduce((sum: number, d: any) => sum + Number(d.total_hpp), 0)
+                setTotalHPP(hpp)
+            } catch {
+                // View might not exist yet
+                setTotalHPP(0)
+            }
+        }
+        fetchHPP()
+    }, [dateRange])
 
     // Date filter
     const getDateRange = () => {
@@ -83,8 +105,10 @@ export default function Finance() {
     }, [expenses, dateRange])
 
     const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0)
-    const netProfit = totalRevenue - totalExpenses
-    const profitMargin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : '0'
+    const grossProfit = totalRevenue - totalHPP
+    const netProfit = grossProfit - totalExpenses
+    const grossMargin = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : '0'
+    const netMargin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : '0'
 
     // Expense by category
     const expenseByCategory = EXPENSE_CATEGORIES.map(cat => ({
@@ -192,48 +216,91 @@ export default function Finance() {
 
             <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Revenue */}
-                    <div className="bg-white dark:bg-[#2d2018] rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
-                        <div className="flex items-center justify-between mb-4">
-                            <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Pendapatan</span>
-                            <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600">
-                                <ArrowUpRight className="w-5 h-5" />
+                    <div className="bg-white dark:bg-[#2d2018] rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Pendapatan</span>
+                            <div className="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600">
+                                <ArrowUpRight className="w-4 h-4" />
                             </div>
                         </div>
-                        <p className="text-3xl font-extrabold text-green-600">{formatRupiah(totalRevenue)}</p>
-                        <p className="text-xs text-gray-400 mt-1">{filteredOrders.length} pesanan selesai</p>
+                        <p className="text-2xl font-extrabold text-green-600">{formatRupiah(totalRevenue)}</p>
+                        <p className="text-[10px] text-gray-400 mt-1">{filteredOrders.length} pesanan</p>
+                    </div>
+
+                    {/* HPP */}
+                    <div className="bg-white dark:bg-[#2d2018] rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">HPP (COGS)</span>
+                            <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600">
+                                <Calculator className="w-4 h-4" />
+                            </div>
+                        </div>
+                        <p className="text-2xl font-extrabold text-orange-500">{formatRupiah(totalHPP)}</p>
+                        <p className="text-[10px] text-gray-400 mt-1">Gross Margin: {grossMargin}%</p>
                     </div>
 
                     {/* Expenses */}
-                    <div className="bg-white dark:bg-[#2d2018] rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
-                        <div className="flex items-center justify-between mb-4">
-                            <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Pengeluaran</span>
-                            <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600">
-                                <ArrowDownRight className="w-5 h-5" />
+                    <div className="bg-white dark:bg-[#2d2018] rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Pengeluaran</span>
+                            <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600">
+                                <ArrowDownRight className="w-4 h-4" />
                             </div>
                         </div>
-                        <p className="text-3xl font-extrabold text-red-500">{formatRupiah(totalExpenses)}</p>
-                        <p className="text-xs text-gray-400 mt-1">{filteredExpenses.length} transaksi</p>
+                        <p className="text-2xl font-extrabold text-red-500">{formatRupiah(totalExpenses)}</p>
+                        <p className="text-[10px] text-gray-400 mt-1">{filteredExpenses.length} transaksi</p>
                     </div>
 
                     {/* Net Profit */}
                     <div className={cn(
-                        "rounded-xl p-6 shadow-sm border",
+                        "rounded-xl p-5 shadow-sm border",
                         netProfit >= 0
                             ? "bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/10 border-emerald-200 dark:border-emerald-800"
                             : "bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/10 border-red-200 dark:border-red-800"
                     )}>
-                        <div className="flex items-center justify-between mb-4">
-                            <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Laba Bersih</span>
-                            <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", netProfit >= 0 ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600")}>
-                                {netProfit >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Net Profit</span>
+                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", netProfit >= 0 ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600")}>
+                                {netProfit >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                             </div>
                         </div>
-                        <p className={cn("text-3xl font-extrabold", netProfit >= 0 ? "text-emerald-600" : "text-red-600")}>
+                        <p className={cn("text-2xl font-extrabold", netProfit >= 0 ? "text-emerald-600" : "text-red-600")}>
                             {formatRupiah(netProfit)}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">Margin: {profitMargin}%</p>
+                        <p className="text-[10px] text-gray-400 mt-1">Net Margin: {netMargin}%</p>
+                    </div>
+                </div>
+
+                {/* P&L Waterfall */}
+                <div className="bg-white dark:bg-[#2d2018] rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
+                    <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-4">Profit & Loss Flow</h3>
+                    <div className="flex items-center gap-2 text-xs font-medium overflow-x-auto">
+                        <div className="text-center px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 min-w-[100px]">
+                            <p className="text-gray-500">Revenue</p>
+                            <p className="text-green-600 font-bold text-sm">{formatRupiah(totalRevenue)}</p>
+                        </div>
+                        <span className="text-gray-400 shrink-0">→</span>
+                        <div className="text-center px-3 py-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800 min-w-[100px]">
+                            <p className="text-gray-500">- HPP</p>
+                            <p className="text-orange-500 font-bold text-sm">{formatRupiah(totalHPP)}</p>
+                        </div>
+                        <span className="text-gray-400 shrink-0">=</span>
+                        <div className="text-center px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 min-w-[100px]">
+                            <p className="text-gray-500">Gross Profit</p>
+                            <p className="text-blue-600 font-bold text-sm">{formatRupiah(grossProfit)}</p>
+                        </div>
+                        <span className="text-gray-400 shrink-0">→</span>
+                        <div className="text-center px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 min-w-[100px]">
+                            <p className="text-gray-500">- Expenses</p>
+                            <p className="text-red-500 font-bold text-sm">{formatRupiah(totalExpenses)}</p>
+                        </div>
+                        <span className="text-gray-400 shrink-0">=</span>
+                        <div className={cn("text-center px-3 py-2 rounded-lg border min-w-[100px]", netProfit >= 0 ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800')}>
+                            <p className="text-gray-500">Net Profit</p>
+                            <p className={cn("font-bold text-sm", netProfit >= 0 ? 'text-emerald-600' : 'text-red-600')}>{formatRupiah(netProfit)}</p>
+                        </div>
                     </div>
                 </div>
 

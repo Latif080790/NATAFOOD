@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useOrderStore, type Order, type OrderStatus } from '@/store/orderStore'
 import { cn } from '@/lib/utils'
-import { Clock, Play, CheckCircle, RotateCcw, Utensils, AlertTriangle, ChefHat } from 'lucide-react'
+import { Clock, Play, CheckCircle, RotateCcw, Utensils, AlertTriangle, ChefHat, Printer } from 'lucide-react'
 
 // Helper to format duration mm:ss
 const formatDuration = (ms: number) => {
@@ -80,6 +80,13 @@ export default function Kitchen() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2 md:gap-4">
+                    <button
+                        onClick={() => window.print()}
+                        className="p-2 text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors hidden md:block"
+                        title="Print View"
+                    >
+                        <Printer className="w-5 h-5" />
+                    </button>
                     <button className="hidden md:flex items-center gap-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors px-4 py-2 rounded-lg group">
                         <div className="flex flex-col items-start leading-none">
                             <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">Active Orders</span>

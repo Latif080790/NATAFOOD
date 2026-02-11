@@ -11,6 +11,7 @@ export interface StockItem {
     currentStock: number
     minStock: number
     maxStock: number
+    costPrice: number
     image: string
 }
 
@@ -49,6 +50,7 @@ export const useInventoryStore = create<InventoryState>((set) => ({
                     currentStock: Number(item.current_stock),
                     minStock: Number(item.min_stock),
                     maxStock: Number(item.max_stock) || 100,
+                    costPrice: Number(item.cost_price) || 0,
                     image: item.image_url || 'https://images.unsplash.com/photo-1556740738-b6a63e27c4df'
                 }))
                 set({ stock: mappedStock })
@@ -97,6 +99,7 @@ export const useInventoryStore = create<InventoryState>((set) => ({
                     current_stock: item.currentStock,
                     min_stock: item.minStock,
                     max_stock: item.maxStock,
+                    cost_price: item.costPrice,
                     image_url: item.image,
                 }])
             if (error) throw error
@@ -159,6 +162,7 @@ export const useInventoryStore = create<InventoryState>((set) => ({
                                 currentStock: Number(newItem.current_stock),
                                 minStock: Number(newItem.min_stock),
                                 maxStock: Number(newItem.max_stock) || 100,
+                                costPrice: Number(newItem.cost_price) || 0,
                                 image: newItem.image_url || 'https://images.unsplash.com/photo-1556740738-b6a63e27c4df'
                             }]
                         }))

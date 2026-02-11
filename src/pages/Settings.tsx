@@ -10,11 +10,23 @@ import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
 import MenuManagement from './settings/MenuManagement'
 import RecipeManagement from './settings/RecipeManagement'
+import TableManagement from './settings/TableManagement'
+import UserManagement from './settings/UserManagement'
+import HPPDashboard from './settings/HPPDashboard'
 
-type Tab = 'general' | 'menu' | 'recipe'
+type Tab = 'general' | 'menu' | 'recipe' | 'table' | 'user' | 'hpp'
+
+import { useSearchParams } from 'react-router-dom'
 
 export default function Settings() {
-    const [activeTab, setActiveTab] = useState<Tab>('general')
+    const [searchParams, setSearchParams] = useSearchParams()
+    const initialTab = searchParams.get('tab') as Tab || 'general'
+    const [activeTab, setActiveTab] = useState<Tab>(initialTab)
+
+    const handleTabChange = (tab: Tab) => {
+        setActiveTab(tab)
+        setSearchParams({ tab })
+    }
     const settings = useSettingsStore()
 
     // Apply theme
@@ -44,21 +56,39 @@ export default function Settings() {
                 <div className="flex gap-1 border-b mb-6 overflow-x-auto">
                     <TabButton
                         active={activeTab === 'general'}
-                        onClick={() => setActiveTab('general')}
+                        onClick={() => handleTabChange('general')}
                         icon={<Store className="w-4 h-4" />}
                         label="Umum"
                     />
                     <TabButton
                         active={activeTab === 'menu'}
-                        onClick={() => setActiveTab('menu')}
+                        onClick={() => handleTabChange('menu')}
                         icon={<UtensilsCrossed className="w-4 h-4" />}
                         label="Manajemen Menu"
                     />
                     <TabButton
                         active={activeTab === 'recipe'}
-                        onClick={() => setActiveTab('recipe')}
+                        onClick={() => handleTabChange('recipe')}
                         icon={<ScrollText className="w-4 h-4" />}
                         label="Resep & Bahan"
+                    />
+                    <TabButton
+                        active={activeTab === 'table'}
+                        onClick={() => handleTabChange('table')}
+                        icon={<Store className="w-4 h-4" />}
+                        label="Meja"
+                    />
+                    <TabButton
+                        active={activeTab === 'user'}
+                        onClick={() => handleTabChange('user')}
+                        icon={<Store className="w-4 h-4" />}
+                        label="User"
+                    />
+                    <TabButton
+                        active={activeTab === 'hpp'}
+                        onClick={() => handleTabChange('hpp')}
+                        icon={<Percent className="w-4 h-4" />}
+                        label="HPP / BOM"
                     />
                 </div>
             </div>
@@ -214,6 +244,9 @@ export default function Settings() {
 
                 {activeTab === 'menu' && <MenuManagement />}
                 {activeTab === 'recipe' && <RecipeManagement />}
+                {activeTab === 'table' && <TableManagement />}
+                {activeTab === 'user' && <UserManagement />}
+                {activeTab === 'hpp' && <HPPDashboard />}
             </div>
         </div>
     )

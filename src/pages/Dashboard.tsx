@@ -13,7 +13,9 @@ import {
     Download,
     Calendar,
     Bell,
-    ArrowUpRight
+    ArrowUpRight,
+    TrendingUp,
+    Calculator
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatRupiah } from '@/lib/format'
@@ -40,6 +42,7 @@ export default function Dashboard() {
         cancelled: 0
     })
     const [showNotifications, setShowNotifications] = useState(false)
+    const [profitData, setProfitData] = useState({ hpp: 0, grossProfit: 0, margin: 0 })
 
     const fetchStats = async () => {
         try {
@@ -65,6 +68,27 @@ export default function Dashboard() {
         fetchStats()
         fetchOrders()
         fetchStock()
+        // Fetch today's profit data from daily_profit view
+        const fetchProfitData = async () => {
+            try {
+                const today = new Date().toISOString().slice(0, 10)
+                const { data } = await supabase
+                    .from('daily_profit')
+                    .select('*')
+                    .eq('profit_date', today)
+                    .single()
+                if (data) {
+                    setProfitData({
+                        hpp: Number(data.total_hpp) || 0,
+                        grossProfit: Number(data.total_gross_profit) || 0,
+                        margin: Number(data.avg_margin_percent) || 0
+                    })
+                }
+            } catch {
+                // View might not exist yet
+            }
+        }
+        fetchProfitData()
         const interval = setInterval(fetchStats, 60000)
         return () => clearInterval(interval)
     }, [])
@@ -259,6 +283,50 @@ export default function Dashboard() {
                     </div>
                 </div>
 
+                {/* Profit Indicator */}
+                <div className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/10 rounded-xl p-5 border border-emerald-200/60 dark:border-emerald-800/40 shadow-sm">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                                <TrendingUp className="w-5 h-5 text-emerald-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">Today's Profit</h3>
+                                <p className="text-xs text-gray-500">Revenue - HPP = Gross Profit</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <div className="text-center">
+                                <p className="text-[10px] text-gray-500 uppercase font-semibold">HPP</p>
+                                <p className="text-sm font-bold text-orange-500">{formatRupiah(profitData.hpp)}</p>
+                            </div>
+                            <div className="text-center">
+                                <p className="text-[10px] text-gray-500 uppercase font-semibold">Gross Profit</p>
+                                <p className="text-sm font-bold text-emerald-600">{formatRupiah(profitData.grossProfit)}</p>
+                            </div>
+                            <div className="text-center">
+                                <p className="text-[10px] text-gray-500 uppercase font-semibold">Margin</p>
+                                <p className={cn(
+                                    "text-sm font-bold px-2 py-0.5 rounded-full",
+                                    profitData.margin >= 30
+                                        ? 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/40'
+                                        : profitData.margin >= 15
+                                            ? 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/40'
+                                            : 'text-red-600 bg-red-100 dark:bg-red-900/40'
+                                )}>
+                                    {profitData.margin}%
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => navigate('/settings?tab=hpp')}
+                                className="flex items-center gap-1 text-xs text-primary font-medium hover:underline"
+                            >
+                                <Calculator className="w-3.5 h-3.5" /> Detail HPP
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Quick Actions Row */}
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
@@ -278,7 +346,7 @@ export default function Dashboard() {
                             <span className="font-medium">Restock Inventory</span>
                         </button>
                         <button
-                            onClick={() => toast.info('Fitur Manajemen Staff akan hadir di versi berikutnya.')}
+                            onClick={() => navigate('/settings?tab=user')}
                             className="flex items-center gap-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 hover:border-primary/50 text-gray-700 dark:text-gray-200 px-5 py-3 rounded-lg shadow-sm transition-all hover:bg-gray-50 dark:hover:bg-subtle-dark active:scale-95"
                         >
                             <UserPlus className="w-5 h-5 text-primary" />

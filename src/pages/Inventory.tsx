@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useInventoryStore, type StockItem } from '@/store/inventoryStore'
 import { cn } from '@/lib/utils'
-import { Search, Plus, Minus, Package, AlertTriangle, CheckCircle, TrendingDown, MoreVertical, X, Pencil, Trash2 } from 'lucide-react'
+import { Search, Plus, Minus, Package, AlertTriangle, CheckCircle, TrendingDown, MoreVertical, X, Pencil, Trash2, Download, Printer } from 'lucide-react'
+import { toast } from '@/store/toastStore'
 
 const CATEGORIES = ['All Ingredients', 'Dairy', 'Dry Goods', 'Fresh', 'Syrups', 'Packaging']
 
@@ -28,7 +29,7 @@ function InventoryDialog({ open, onClose, editItem }: InventoryDialogProps) {
     const { addItem, fetchStock } = useInventoryStore()
     const [form, setForm] = useState({
         name: '', sku: '', category: 'Dairy', unit: 'kg',
-        currentStock: 0, minStock: 5, maxStock: 100, image: ''
+        currentStock: 0, minStock: 5, maxStock: 100, costPrice: 0, image: ''
     })
     const [saving, setSaving] = useState(false)
 
@@ -42,10 +43,11 @@ function InventoryDialog({ open, onClose, editItem }: InventoryDialogProps) {
                 currentStock: editItem.currentStock,
                 minStock: editItem.minStock,
                 maxStock: editItem.maxStock,
+                costPrice: editItem.costPrice,
                 image: editItem.image,
             })
         } else {
-            setForm({ name: '', sku: '', category: 'Dairy', unit: 'kg', currentStock: 0, minStock: 5, maxStock: 100, image: '' })
+            setForm({ name: '', sku: '', category: 'Dairy', unit: 'kg', currentStock: 0, minStock: 5, maxStock: 100, costPrice: 0, image: '' })
         }
     }, [editItem, open])
 
@@ -68,6 +70,7 @@ function InventoryDialog({ open, onClose, editItem }: InventoryDialogProps) {
                         current_stock: form.currentStock,
                         min_stock: form.minStock,
                         max_stock: form.maxStock,
+                        cost_price: form.costPrice,
                         image_url: form.image || null,
                     })
                     .eq('id', editItem.id)
@@ -169,6 +172,16 @@ function InventoryDialog({ open, onClose, editItem }: InventoryDialogProps) {
                                 onChange={e => setForm({ ...form, maxStock: Number(e.target.value) })}
                             />
                         </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">💰 Harga Beli / Unit</label>
+                            <input
+                                type="number" min={0} step={100}
+                                className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none"
+                                value={form.costPrice}
+                                onChange={e => setForm({ ...form, costPrice: Number(e.target.value) })}
+                                placeholder="e.g. 15000"
+                            />
+                        </div>
                         <div className="col-span-2">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">URL Gambar (opsional)</label>
                             <input
@@ -264,6 +277,33 @@ export default function Inventory() {
     const openAdd = () => { setEditItem(null); setDialogOpen(true) }
     const openEdit = (item: StockItem) => { setEditItem(item); setDialogOpen(true) }
 
+    const handleExport = () => {
+        const headers = ['Name', 'SKU', 'Category', 'Stock', 'Unit', 'Status']
+        const rows = stock.map(item => [
+            item.name,
+            item.sku,
+            item.category,
+            item.currentStock,
+            item.unit,
+            getStockStatus(item)
+        ])
+
+        const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `inventory_${new Date().toISOString().split('T')[0]}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        toast.success('Inventory exported to CSV')
+    }
+
+    const handlePrint = () => {
+        window.print()
+    }
+
     return (
         <div className="h-[calc(100vh-4rem)] md:h-screen flex flex-col overflow-hidden bg-[#f8f7f5] dark:bg-[#23170f]">
             {/* Top Navigation Bar */}
@@ -290,6 +330,20 @@ export default function Inventory() {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleExport}
+                        className="p-2 text-gray-500 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors hidden md:block"
+                        title="Export CSV"
+                    >
+                        <Download className="w-5 h-5" />
+                    </button>
+                    <button
+                        onClick={handlePrint}
+                        className="p-2 text-gray-500 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors hidden md:block"
+                        title="Print Inventory"
+                    >
+                        <Printer className="w-5 h-5" />
+                    </button>
                     <button
                         onClick={openAdd}
                         className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-orange-600 transition-colors font-medium shadow-lg shadow-primary/20"
@@ -467,6 +521,11 @@ function InventoryCard({
                     <div>
                         <h3 className="font-bold text-lg text-gray-900 dark:text-white leading-tight">{item.name}</h3>
                         <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">{item.sku} • {item.category}</p>
+                        {item.costPrice > 0 && (
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
+                                Rp {item.costPrice.toLocaleString('id-ID')}/{item.unit}
+                            </p>
+                        )}
                     </div>
                 </div>
                 {isCritical ? (
